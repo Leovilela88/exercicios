@@ -1,5 +1,5 @@
 from datetime import date as date_type
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, func
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, LargeBinary, func
 from db import Base
 
 
@@ -12,6 +12,8 @@ class Athlete(Base):
     height_cm = Column(Float, nullable=True)
     age = Column(Integer, nullable=True)
     sex = Column(String(1), nullable=True)  # 'M' | 'F' | None
+    photo = Column(LargeBinary, nullable=True)
+    photo_mime = Column(String(50), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 

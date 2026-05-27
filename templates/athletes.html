@@ -31,9 +31,24 @@
     {% for a in athletes %}
     <article class="athlete-card {% if athlete and a.id == athlete.id %}is-active{% endif %}">
         <header>
-            <div>
-                <h3>{{ a.name }}</h3>
-                {% if athlete and a.id == athlete.id %}<span class="badge">ativo</span>{% endif %}
+            <div class="athlete-head">
+                <label class="avatar-edit" title="Trocar foto">
+                    {% if a.photo_mime %}
+                    <img class="avatar avatar-lg" src="/atletas/{{ a.id }}/foto" alt="{{ a.name }}" />
+                    {% else %}
+                    <span class="avatar avatar-lg avatar-placeholder">{{ a.name[:1]|upper }}</span>
+                    {% endif %}
+                    <input type="file" name="file" accept="image/*"
+                           onchange="this.form.submit()" form="photo-form-{{ a.id }}" hidden />
+                    <span class="avatar-edit-icon">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"/><circle cx="12" cy="13" r="4"/></svg>
+                    </span>
+                </label>
+                <form method="post" id="photo-form-{{ a.id }}" action="/atletas/{{ a.id }}/foto" enctype="multipart/form-data" hidden></form>
+                <div class="athlete-title">
+                    <h3>{{ a.name }}</h3>
+                    {% if athlete and a.id == athlete.id %}<span class="badge">ativo</span>{% endif %}
+                </div>
             </div>
             <div class="athlete-actions">
                 {% if not (athlete and a.id == athlete.id) %}

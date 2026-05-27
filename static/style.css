@@ -1,10 +1,10 @@
 :root {
-    --bg: #0b1220;
-    --bg-grad: radial-gradient(1200px 600px at 80% -10%, rgba(59,130,246,0.10), transparent 60%),
-               radial-gradient(900px 500px at -10% 0%, rgba(168,85,247,0.08), transparent 60%);
-    --panel: #111a2e;
-    --panel-2: #18243d;
-    --panel-hover: #1b2944;
+    --bg: #050810;
+    --bg-grad: radial-gradient(1200px 600px at 80% -10%, rgba(59,130,246,0.06), transparent 60%),
+               radial-gradient(900px 500px at -10% 0%, rgba(168,85,247,0.05), transparent 60%);
+    --panel: #0a0f1a;
+    --panel-2: #11172a;
+    --panel-hover: #161e36;
     --text: #f1f5f9;
     --text-2: #cbd5e1;
     --muted: #94a3b8;
@@ -12,9 +12,9 @@
     --accent: #3b82f6;
     --accent-hover: #2563eb;
     --danger: #ef4444;
-    --border: rgba(148, 163, 184, 0.12);
-    --border-strong: rgba(148, 163, 184, 0.22);
-    --shadow: 0 1px 3px rgba(0,0,0,0.18), 0 4px 12px rgba(0,0,0,0.25);
+    --border: rgba(148, 163, 184, 0.10);
+    --border-strong: rgba(148, 163, 184, 0.20);
+    --shadow: 0 1px 3px rgba(0,0,0,0.35), 0 4px 12px rgba(0,0,0,0.45);
 }
 
 * { box-sizing: border-box; }
@@ -36,13 +36,14 @@ body {
 
 /* ---------- Nav ---------- */
 .nav {
-    background: rgba(11, 18, 32, 0.75);
+    background: rgba(5, 8, 16, 0.82);
     backdrop-filter: saturate(160%) blur(14px);
     -webkit-backdrop-filter: saturate(160%) blur(14px);
     border-bottom: 1px solid var(--border);
     position: sticky;
     top: 0;
     z-index: 30;
+    padding-top: env(safe-area-inset-top);
 }
 .nav-inner {
     max-width: 1240px;
@@ -557,6 +558,100 @@ input[type="file"] {
     cursor: pointer;
 }
 input[type="file"]:hover { border-color: var(--accent); background: var(--panel-hover); }
+
+/* ---------- Avatares ---------- */
+.avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    object-fit: cover;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    flex-shrink: 0;
+    overflow: hidden;
+    color: var(--text);
+    font-weight: 600;
+}
+.avatar-xs { width: 22px; height: 22px; font-size: 0.7rem; border-width: 0; }
+.avatar-lg { width: 64px; height: 64px; font-size: 1.6rem; }
+.avatar-placeholder {
+    background: linear-gradient(135deg, #1e40af, #3b82f6);
+    color: white;
+}
+
+.athlete-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+.athlete-title { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.avatar-edit {
+    position: relative;
+    cursor: pointer;
+    display: inline-block;
+    line-height: 0;
+}
+.avatar-edit:hover .avatar-edit-icon { opacity: 1; }
+.avatar-edit-icon {
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(5, 8, 16, 0.65);
+    color: white;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    opacity: 0;
+    transition: opacity .15s;
+}
+
+/* ---------- Nav mobile ---------- */
+.nav-link { display: inline-flex; align-items: center; gap: 6px; }
+.nav-link .nav-icon { display: none; }
+.athlete-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dropdown-name { display: inline-flex; align-items: center; gap: 8px; }
+
+@media (max-width: 720px) {
+    .container { padding: 22px 16px 80px; }
+    .nav-inner { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
+    .nav-links { gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
+    .nav-link { padding: 7px 9px; }
+    .nav-link .nav-icon { display: inline-block; }
+    .nav-link .nav-label { display: none; }
+    .nav-links .btn-primary { padding: 7px 11px; }
+    .nav-links .btn-primary .nav-label { display: none; }
+    .athlete-name { max-width: 90px; }
+
+    .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .page-title { font-size: 1.45rem; }
+    .card-value { font-size: 1.45rem; }
+    .card { padding: 16px 18px; }
+    .chart-box { padding: 16px; min-height: 260px; }
+    .chart-box canvas { max-height: 220px; }
+    .form { padding: 18px; }
+    .athlete-grid { grid-template-columns: 1fr; gap: 14px; }
+    .athlete-card { padding: 16px 18px; }
+
+    /* Tabela com scroll horizontal limpo */
+    .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tbl { font-size: 0.82rem; min-width: 460px; }
+
+    /* Range tabs scrollable */
+    .range-tabs { width: 100%; }
+    .range-tab { padding: 6px 11px; font-size: 0.82rem; }
+}
+
+@media (max-width: 420px) {
+    .brand span { display: none; }
+    .athlete-name { max-width: 70px; }
+}
+
+/* PWA standalone: zera margens superiores que conflitam com a status bar */
+@media (display-mode: standalone) {
+    body { padding-bottom: env(safe-area-inset-bottom); }
+}
 
 .empty { color: var(--muted); font-size: 0.95rem; }
 .empty a { color: var(--accent); text-decoration: none; }

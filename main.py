@@ -1,12 +1,14 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
-from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
+import io
+from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
+from PIL import Image, ImageOps
 
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
@@ -38,6 +40,16 @@ def _init_db() -> None:
                 else:
                     conn.execute(text("ALTER TABLE workouts ADD COLUMN athlete_id INTEGER"))
 
+    # Colunas de foto em athletes podem não existir em bases pré-migração.
+    if "athletes" in insp.get_table_names():
+        cols = {c["name"] for c in insp.get_columns("athletes")}
+        photo_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
+        with engine.begin() as conn:
+            if "photo" not in cols:
+                conn.execute(text(f"ALTER TABLE athletes ADD COLUMN photo {photo_type}"))
+            if "photo_mime" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN photo_mime VARCHAR(50)"))
+
     db = SessionLocal()
     try:
         if not db.query(Athlete).first():
@@ -61,6 +73,41 @@ def _init_db() -> None:
 
 
 _init_db()
+
+
+def _ensure_pwa_icons() -> None:
+    """Gera ícones PNG do app (192/512px) se não existirem.
+    iOS Safari precisa de PNG para apple-touch-icon."""
+    import os
+    from PIL import ImageDraw
+
+    static_dir = os.path.join(os.path.dirname(__file__), "static")
+    for size in (192, 512):
+        path = os.path.join(static_dir, f"icon-{size}.png")
+        if os.path.exists(path):
+            continue
+        img = Image.new("RGB", (size, size), (10, 16, 32))
+        draw = ImageDraw.Draw(img)
+        s = size / 512
+        stroke = max(int(36 * s), 6)
+
+        def line(x1, y1, x2, y2):
+            draw.line([(int(x1 * s), int(y1 * s)), (int(x2 * s), int(y2 * s))],
+                      fill=(96, 165, 250), width=stroke)
+
+        line(138, 138, 138, 374)
+        line(374, 138, 374, 374)
+        line(104, 200, 104, 312)
+        line(408, 200, 408, 312)
+        line(138, 256, 374, 256)
+        try:
+            img.save(path, format="PNG", optimize=True)
+        except Exception:
+            pass
+
+
+_ensure_pwa_icons()
+
 
 app = FastAPI(title="Exercícios")
 app.mount("/static", StaticFiles(directory="static"), name="static")
@@ -488,6 +535,61 @@ def athletes_edit(
         a.height_cm = _to_float(height_cm)
         a.age = _to_int(age)
         a.sex = sex.upper() if sex in ("M", "F", "m", "f") else None
+        db.commit()
+    return RedirectResponse(url="/atletas", status_code=303)
+
+
+@app.get("/atletas/{aid}/foto")
+def athletes_photo(aid: int, db: Session = Depends(get_db)):
+    a = db.query(Athlete).filter(Athlete.id == aid).first()
+    if not a or not a.photo:
+        raise HTTPException(status_code=404)
+    return Response(content=a.photo, media_type=a.photo_mime or "image/jpeg",
+                    headers={"Cache-Control": "public, max-age=3600"})
+
+
+@app.post("/atletas/{aid}/foto")
+async def athletes_photo_upload(
+    aid: int, file: UploadFile = File(...), db: Session = Depends(get_db)
+):
+    a = db.query(Athlete).filter(Athlete.id == aid).first()
+    if not a:
+        return RedirectResponse(url="/atletas", status_code=303)
+    raw = await file.read()
+    if not raw or len(raw) > 8 * 1024 * 1024:  # 8 MB hard cap
+        return RedirectResponse(url="/atletas", status_code=303)
+    try:
+        img = Image.open(io.BytesIO(raw))
+        img = ImageOps.exif_transpose(img)  # respeita orientação EXIF do celular
+        # Crop quadrado central e redimensiona pra 512x512
+        w, h = img.size
+        side = min(w, h)
+        left = (w - side) // 2
+        top = (h - side) // 2
+        img = img.crop((left, top, left + side, top + side))
+        img = img.resize((512, 512), Image.LANCZOS)
+        if img.mode in ("RGBA", "P", "LA"):
+            bg = Image.new("RGB", img.size, (10, 16, 32))
+            bg.paste(img, mask=img.convert("RGBA").split()[-1] if img.mode != "P" else None)
+            img = bg
+        elif img.mode != "RGB":
+            img = img.convert("RGB")
+        out = io.BytesIO()
+        img.save(out, format="JPEG", quality=85, optimize=True)
+        a.photo = out.getvalue()
+        a.photo_mime = "image/jpeg"
+        db.commit()
+    except Exception:
+        pass
+    return RedirectResponse(url="/atletas", status_code=303)
+
+
+@app.post("/atletas/{aid}/foto/delete")
+def athletes_photo_delete(aid: int, db: Session = Depends(get_db)):
+    a = db.query(Athlete).filter(Athlete.id == aid).first()
+    if a:
+        a.photo = None
+        a.photo_mime = None
         db.commit()
     return RedirectResponse(url="/atletas", status_code=303)
 
