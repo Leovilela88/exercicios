@@ -14,3 +14,10 @@ class Workout(Base):
     calories = Column(Float, nullable=True)
     notes = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+
+class Settings(Base):
+    __tablename__ = "settings"
+
+    id = Column(Integer, primary_key=True)
+    weight_kg = Column(Float, nullable=False, default=82.0)

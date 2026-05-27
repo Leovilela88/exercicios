@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Ajustes - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Ajustes</h1>
+        <p class="page-sub">Configurações pessoais para o cálculo de calorias.</p>
+    </div>
+</header>
+<form method="post" action="/config" class="form" style="max-width: 480px;">
+    <label>
+        <span>Peso (kg)</span>
+        <input type="number" step="0.1" min="20" max="250" name="weight_kg" value="{{ "%.1f"|format(settings.weight_kg) }}" required />
+    </label>
+    <p class="hint">Usado na fórmula <code>kcal = MET × peso × horas</code>. Vale para corrida, natação e outros.</p>
+    <div class="actions">
+        <a href="/" class="btn-ghost">Voltar</a>
+        <button type="submit" class="btn-primary">Salvar</button>
+    </div>
+</form>
+{% endblock %}
