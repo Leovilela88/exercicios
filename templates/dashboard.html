@@ -12,6 +12,12 @@
     </div>
 </header>
 
+<div class="range-tabs" role="tablist" aria-label="Período dos gráficos">
+    {% for key, label in range_options %}
+    <a href="/?range={{ key }}" class="range-tab {% if range_key == key %}active{% endif %}" role="tab">{{ label }}</a>
+    {% endfor %}
+</div>
+
 <section class="cards">
     <div class="card card-run">
         <div class="card-icon">
@@ -48,24 +54,27 @@
 </section>
 
 <section class="charts-grid">
+    {% set range_label_map = dict(range_options) %}
+    {% set range_label = range_label_map[range_key] %}
+    {% set bucket_label = 'por semana' if bucket == 'week' else 'por dia' %}
     <div class="chart-box">
         <div class="chart-header">
             <h2>Dias ativos</h2>
-            <span class="chart-sub">Últimos 30 dias</span>
+            <span class="chart-sub">{{ range_label }} · {{ bucket_label }}</span>
         </div>
         <canvas id="chartActive"></canvas>
     </div>
     <div class="chart-box">
         <div class="chart-header">
-            <h2>Calorias por dia</h2>
-            <span class="chart-sub">Últimos 30 dias</span>
+            <h2>Calorias {{ bucket_label }}</h2>
+            <span class="chart-sub">{{ range_label }}</span>
         </div>
         <canvas id="chartCal"></canvas>
     </div>
     <div class="chart-box chart-wide">
         <div class="chart-header">
-            <h2>Evolução semanal</h2>
-            <span class="chart-sub">km por esporte · últimas 12 semanas</span>
+            <h2>Evolução {{ 'semanal' if bucket == 'week' else 'diária' }}</h2>
+            <span class="chart-sub">km por esporte · {{ range_label }}</span>
         </div>
         <canvas id="chartEvo"></canvas>
     </div>
@@ -125,13 +134,15 @@
 </section>
 
 <script>
-    const labels30 = {{ labels_30|tojson }};
-    const active30 = {{ active_30|tojson }};
-    const cal30 = {{ cal_30|tojson }};
-    const weekLabels = {{ week_labels|tojson }};
-    const corridaWeek = {{ corrida_per_week|tojson }};
-    const natacaoWeek = {{ natacao_per_week|tojson }};
+    const labels30 = {{ labels|tojson }};
+    const active30 = {{ active_series|tojson }};
+    const cal30 = {{ cal_series|tojson }};
+    const weekLabels = {{ evo_labels|tojson }};
+    const corridaWeek = {{ corrida_evo|tojson }};
+    const natacaoWeek = {{ natacao_evo|tojson }};
     const breakdown = {{ breakdown|tojson }};
+    const bucket = {{ bucket|tojson }};
+    const activeMax = bucket === 'week' ? 7 : 1;
 
     Chart.defaults.font.family = "Inter, -apple-system, BlinkMacSystemFont, sans-serif";
     Chart.defaults.color = '#94a3b8';
@@ -154,18 +165,32 @@
         data: {
             labels: labels30,
             datasets: [{
-                label: 'Treinou',
+                label: 'Dias ativos',
                 data: active30,
-                backgroundColor: ctx => ctx.raw === 1 ? '#10b981' : 'rgba(148,163,184,0.15)',
+                backgroundColor: ctx => {
+                    const v = ctx.raw || 0;
+                    if (v === 0) return 'rgba(148,163,184,0.15)';
+                    const intensity = bucket === 'week' ? (0.35 + 0.65 * (v / 7)) : 1;
+                    return `rgba(16,185,129,${intensity})`;
+                },
                 borderRadius: 3,
                 barPercentage: 0.85,
             }]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
-            plugins: {legend: {display: false}, tooltip: {...tooltipStyle, callbacks: {label: c => c.raw === 1 ? 'Treinou' : 'Sem treino'}}},
+            plugins: {
+                legend: {display: false},
+                tooltip: {...tooltipStyle, callbacks: {
+                    label: c => bucket === 'week'
+                        ? `${c.raw} ${c.raw === 1 ? 'dia ativo' : 'dias ativos'} na semana`
+                        : (c.raw === 1 ? 'Treinou' : 'Sem treino')
+                }}
+            },
             scales: {
-                y: {display: false, min: 0, max: 1},
+                y: bucket === 'week'
+                    ? {beginAtZero: true, max: 7, ticks: {color: tickColor, stepSize: 1, font: {size: 11}}, grid: {color: gridColor}}
+                    : {display: false, min: 0, max: 1},
                 x: {ticks: {color: tickColor, maxRotation: 0, autoSkip: true, font: {size: 10}}, grid: {display: false}}
             }
         }

@@ -118,6 +118,37 @@ body {
 }
 .streak-pill strong { color: #fff; font-weight: 700; }
 
+/* ---------- Range tabs ---------- */
+.range-tabs {
+    display: inline-flex;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px;
+    gap: 2px;
+    margin-bottom: 22px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+    max-width: 100%;
+    -webkit-overflow-scrolling: touch;
+}
+.range-tab {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    font-weight: 500;
+    padding: 7px 14px;
+    border-radius: 7px;
+    white-space: nowrap;
+    transition: color .15s, background .15s;
+}
+.range-tab:hover { color: var(--text); background: rgba(148,163,184,0.06); }
+.range-tab.active {
+    color: var(--text);
+    background: var(--panel-hover);
+    box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+
 /* ---------- Stat cards ---------- */
 .cards {
     display: grid;

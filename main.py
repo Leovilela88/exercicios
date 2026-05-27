@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Form, Request
+from fastapi import Depends, FastAPI, Form, Query, Request
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -50,8 +50,47 @@ def _current_streak(active_dates: set[date], today: date) -> int:
     return streak
 
 
+RANGE_OPTIONS = [
+    ("1w", "1 semana"),
+    ("1m", "1 mês"),
+    ("3m", "3 meses"),
+    ("6m", "6 meses"),
+    ("1y", "1 ano"),
+    ("ytd", "No ano"),
+]
+
+
+def _resolve_range(range_key: str, today: date) -> tuple[date, str]:
+    """Retorna (data_inicial, label_normalizado). Janela rolante até hoje."""
+    key = range_key if range_key in dict(RANGE_OPTIONS) else "1m"
+    if key == "1w":
+        start = today - timedelta(days=6)
+    elif key == "1m":
+        start = today - timedelta(days=29)
+    elif key == "3m":
+        start = today - timedelta(days=89)
+    elif key == "6m":
+        start = today - timedelta(days=179)
+    elif key == "1y":
+        start = today - timedelta(days=364)
+    elif key == "ytd":
+        start = date(today.year, 1, 1)
+    else:
+        start = today - timedelta(days=29)
+    return start, key
+
+
 @app.get("/", response_class=HTMLResponse)
-def dashboard(request: Request, db: Session = Depends(get_db)):
+def dashboard(
+    request: Request,
+    range_: str = Query("1m", alias="range"),
+    db: Session = Depends(get_db),
+):
+    today = date.today()
+    start, range_key = _resolve_range(range_, today)
+    span_days = (today - start).days + 1
+    bucket = "day" if span_days <= 90 else "week"
+
     totals = {
         "corrida_km": db.query(func.coalesce(func.sum(Workout.distance_km), 0.0))
         .filter(Workout.sport == "corrida").scalar() or 0.0,
@@ -62,13 +101,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
         "total_treinos": db.query(func.count(Workout.id)).scalar() or 0,
     }
 
-    today = date.today()
-
     # Sequência atual (streak)
     all_dates = {r[0] for r in db.query(func.distinct(Workout.date)).all()}
     streak = _current_streak(all_dates, today)
 
-    # Esta semana (segunda → domingo)
+    # Esta semana (segunda → domingo) — sempre fixo, independente do range
     week_start = today - timedelta(days=today.weekday())
     week_rows = (
         db.query(Workout.sport, func.coalesce(func.sum(Workout.distance_km), 0.0),
@@ -85,51 +122,92 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             week["natacao_km"] = float(km or 0)
         week["calorias"] += float(cal or 0)
 
-    # Últimos 30 dias
-    start = today - timedelta(days=29)
-    rows = (
+    # Dados brutos no range
+    range_rows = (
         db.query(
             Workout.date,
             func.coalesce(func.sum(Workout.calories), 0.0),
             func.count(Workout.id),
         )
-        .filter(Workout.date >= start)
+        .filter(Workout.date >= start, Workout.date <= today)
         .group_by(Workout.date)
         .all()
     )
-    by_day = {r[0]: {"cal": float(r[1] or 0), "count": int(r[2])} for r in rows}
-    labels_30 = []
-    cal_30 = []
-    active_30 = []
-    for i in range(30):
-        d = start + timedelta(days=i)
-        labels_30.append(d.strftime("%d/%m"))
-        info = by_day.get(d, {"cal": 0.0, "count": 0})
-        cal_30.append(info["cal"])
-        active_30.append(1 if info["count"] > 0 else 0)
+    by_day = {r[0]: {"cal": float(r[1] or 0), "count": int(r[2])} for r in range_rows}
 
-    # Evolução semanal (12 semanas) — km por esporte
-    weeks_back = 12
-    start_week = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks_back - 1)
+    # Buckets de dias ativos / calorias
+    labels = []
+    cal_series = []
+    active_series = []
+    if bucket == "day":
+        days = (today - start).days + 1
+        for i in range(days):
+            d = start + timedelta(days=i)
+            info = by_day.get(d, {"cal": 0.0, "count": 0})
+            labels.append(d.strftime("%d/%m"))
+            cal_series.append(info["cal"])
+            active_series.append(1 if info["count"] > 0 else 0)
+    else:
+        # Agrupar por semana (segunda como início). Bucket começa na segunda da semana de `start`.
+        first_monday = start - timedelta(days=start.weekday())
+        cur = first_monday
+        while cur <= today:
+            week_end = cur + timedelta(days=6)
+            cal_sum = 0.0
+            active_days = 0
+            for j in range(7):
+                d = cur + timedelta(days=j)
+                if d < start or d > today:
+                    continue
+                info = by_day.get(d)
+                if info:
+                    cal_sum += info["cal"]
+                    if info["count"] > 0:
+                        active_days += 1
+            labels.append(cur.strftime("%d/%m"))
+            cal_series.append(cal_sum)
+            active_series.append(active_days)  # 0–7
+            cur += timedelta(days=7)
+
+    # Evolução: km por esporte, mesmo agrupamento
     evo_rows = (
         db.query(Workout.date, Workout.sport, Workout.distance_km)
-        .filter(Workout.date >= start_week, Workout.sport.in_(["corrida", "natacao"]))
+        .filter(Workout.date >= start, Workout.date <= today,
+                Workout.sport.in_(["corrida", "natacao"]))
         .all()
     )
-    week_labels = [(start_week + timedelta(weeks=i)).strftime("%d/%m") for i in range(weeks_back)]
-    corrida_per_week = [0.0] * weeks_back
-    natacao_per_week = [0.0] * weeks_back
-    for d, sport, km in evo_rows:
-        idx = (d - start_week).days // 7
-        if 0 <= idx < weeks_back and km:
-            if sport == "corrida":
-                corrida_per_week[idx] += float(km)
-            elif sport == "natacao":
-                natacao_per_week[idx] += float(km)
+    if bucket == "day":
+        evo_labels = labels
+        corrida_evo = [0.0] * len(labels)
+        natacao_evo = [0.0] * len(labels)
+        for d, sport, km in evo_rows:
+            if not km:
+                continue
+            idx = (d - start).days
+            if 0 <= idx < len(labels):
+                if sport == "corrida":
+                    corrida_evo[idx] += float(km)
+                else:
+                    natacao_evo[idx] += float(km)
+    else:
+        evo_labels = labels
+        corrida_evo = [0.0] * len(labels)
+        natacao_evo = [0.0] * len(labels)
+        first_monday = start - timedelta(days=start.weekday())
+        for d, sport, km in evo_rows:
+            if not km:
+                continue
+            idx = (d - first_monday).days // 7
+            if 0 <= idx < len(labels):
+                if sport == "corrida":
+                    corrida_evo[idx] += float(km)
+                else:
+                    natacao_evo[idx] += float(km)
 
-    # Breakdown por esporte (donut)
+    # Breakdown por esporte (donut) — também respeita o range
     breakdown_rows = (
         db.query(Workout.sport, func.count(Workout.id))
+        .filter(Workout.date >= start, Workout.date <= today)
         .group_by(Workout.sport).all()
     )
     breakdown = {"corrida": 0, "natacao": 0, "outro": 0}
@@ -148,15 +226,18 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "totals": totals,
             "week": week,
             "streak": streak,
-            "labels_30": labels_30,
-            "cal_30": cal_30,
-            "active_30": active_30,
-            "week_labels": week_labels,
-            "corrida_per_week": corrida_per_week,
-            "natacao_per_week": natacao_per_week,
+            "labels": labels,
+            "cal_series": cal_series,
+            "active_series": active_series,
+            "evo_labels": evo_labels,
+            "corrida_evo": corrida_evo,
+            "natacao_evo": natacao_evo,
+            "bucket": bucket,
             "breakdown": breakdown,
             "recent": recent,
             "today": today.isoformat(),
+            "range_options": RANGE_OPTIONS,
+            "range_key": range_key,
         },
     )
 
