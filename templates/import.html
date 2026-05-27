@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Importar do Strava - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Importar do Strava</h1>
+        <p class="page-sub">Suba o <code>activities.csv</code> do export para trazer os treinos de <strong>{{ athlete.name }}</strong>.</p>
+    </div>
+</header>
+
+{% if result %}
+    {% if result.error %}
+    <div class="alert alert-error">
+        <strong>Não rolou:</strong> {{ result.error }}
+        {% if result.headers_found %}
+        <div class="hint" style="margin-top:8px;">Colunas detectadas: {{ result.headers_found|join(', ') }}</div>
+        {% endif %}
+    </div>
+    {% elif result.ok %}
+    <div class="alert alert-success">
+        <strong>{{ result.inserted }} treino{{ 's' if result.inserted != 1 else '' }} importado{{ 's' if result.inserted != 1 else '' }}</strong>
+        de <code>{{ result.filename }}</code> · {{ result.total_rows }} linha{{ 's' if result.total_rows != 1 else '' }} processada{{ 's' if result.total_rows != 1 else '' }}.
+        <ul class="result-list">
+            {% if result.by_sport.corrida %}<li>🏃 Corrida: {{ result.by_sport.corrida }}</li>{% endif %}
+            {% if result.by_sport.natacao %}<li>🏊 Natação: {{ result.by_sport.natacao }}</li>{% endif %}
+            {% if result.by_sport.musculacao %}<li>🏋️ Musculação: {{ result.by_sport.musculacao }}</li>{% endif %}
+            {% if result.by_sport.outro %}<li>💪 Outro: {{ result.by_sport.outro }}</li>{% endif %}
+            {% if result.skipped_dup %}<li class="muted">{{ result.skipped_dup }} duplicado{{ 's' if result.skipped_dup != 1 else '' }} ignorado{{ 's' if result.skipped_dup != 1 else '' }}</li>{% endif %}
+            {% if result.skipped_bad %}<li class="muted">{{ result.skipped_bad }} linha{{ 's' if result.skipped_bad != 1 else '' }} com data inválida ignorada{{ 's' if result.skipped_bad != 1 else '' }}</li>{% endif %}
+        </ul>
+        <p style="margin: 12px 0 0;"><a href="/" class="btn-primary btn-small">Ver dashboard</a></p>
+    </div>
+    {% endif %}
+{% endif %}
+
+<form method="post" action="/importar" enctype="multipart/form-data" class="form" style="max-width: 640px;">
+    <label>
+        <span>Arquivo CSV do Strava</span>
+        <input type="file" name="file" accept=".csv,text/csv" required />
+    </label>
+    <p class="hint">
+        Os treinos serão atribuídos ao atleta ativo: <strong>{{ athlete.name }}</strong>.
+        Para importar para outra pessoa, troque o atleta no menu antes.
+        Duplicatas (mesma data + esporte + duração + distância) são automaticamente ignoradas, então pode rodar mais de uma vez sem medo.
+    </p>
+    <div class="actions">
+        <a href="/" class="btn-ghost">Voltar</a>
+        <button type="submit" class="btn-primary">Importar treinos</button>
+    </div>
+</form>
+
+<section class="help-box">
+    <h2>Como exportar do Strava</h2>
+    <ol>
+        <li>Entre no Strava no navegador (não funciona pelo app).</li>
+        <li>Vá em <strong>Configurações → Minha conta → Baixar ou excluir sua conta</strong>.</li>
+        <li>Clique em <em>"Obter início"</em> em <strong>Baixar solicitação (opcional)</strong>.</li>
+        <li>Você receberá um e-mail (pode levar algumas horas) com o link para um zip.</li>
+        <li>Dentro do zip, pegue o arquivo <code>activities.csv</code> e suba aqui.</li>
+    </ol>
+    <p class="hint">
+        Mapeamento de esportes: Run/Trail Run → corrida · Swim → natação · WeightTraining/Workout/CrossFit → musculação · resto → outro.
+        Quando o CSV não tem calorias para uma atividade, eu estimo via MET × peso × tempo usando o peso do atleta ativo.
+    </p>
+</section>
+{% endblock %}

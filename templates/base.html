@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=4" />
+    <link rel="stylesheet" href="/static/style.css?v=5" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -45,6 +45,7 @@
             {% endif %}
             <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
             <a href="/atletas" class="{% if request.url.path == '/atletas' %}active{% endif %}">Atletas</a>
+            <a href="/importar" class="{% if request.url.path == '/importar' %}active{% endif %}">Importar</a>
             <a href="/novo" class="btn-primary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 Novo treino

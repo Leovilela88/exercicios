@@ -1,7 +1,7 @@
 from datetime import date, timedelta
 from typing import Optional
 
-from fastapi import Depends, FastAPI, Form, Query, Request
+from fastapi import Depends, FastAPI, File, Form, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from models import Athlete, Settings, Workout
+from strava_import import parse_strava_csv
 
 SPORTS = ("corrida", "natacao", "musculacao", "outro")
 
@@ -466,6 +467,114 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
     if request.cookies.get("athlete_id") == str(aid):
         resp.delete_cookie("athlete_id")
     return resp
+
+
+# ------------- importar -------------
+
+@app.get("/importar", response_class=HTMLResponse)
+def import_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    return templates.TemplateResponse(
+        "import.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "result": None,
+        },
+    )
+
+
+@app.post("/importar", response_class=HTMLResponse)
+async def import_upload(
+    request: Request,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    content = await file.read()
+
+    if len(content) > 10 * 1024 * 1024:  # 10 MB
+        result = {"error": "Arquivo maior que 10 MB. Suba um CSV menor."}
+        return templates.TemplateResponse(
+            "import.html",
+            {"request": request, "athlete": athlete,
+             "athletes": get_all_athletes(db), "result": result},
+        )
+
+    parsed = parse_strava_csv(content)
+    if not parsed.detected_columns.get("date") or not parsed.detected_columns.get("type"):
+        result = {
+            "error": ("Não consegui identificar as colunas 'Data' e 'Tipo de atividade' "
+                      "no CSV. Confirma que é o activities.csv do export oficial do Strava?"),
+            "headers_found": list(parsed.detected_columns.values()) or None,
+        }
+        return templates.TemplateResponse(
+            "import.html",
+            {"request": request, "athlete": athlete,
+             "athletes": get_all_athletes(db), "result": result},
+        )
+
+    # Dedup: chave (date, sport, duração arredondada, distância arredondada)
+    existing = db.query(
+        Workout.date, Workout.sport, Workout.duration_min, Workout.distance_km
+    ).filter(Workout.athlete_id == athlete.id).all()
+
+    def key(d, sport, dur, dist):
+        return (
+            d,
+            sport,
+            round(dur, 0) if dur is not None else None,
+            round(dist, 2) if dist is not None else None,
+        )
+
+    existing_keys = {key(*row) for row in existing}
+
+    inserted = 0
+    skipped_dup = 0
+    by_sport: dict[str, int] = {}
+
+    for pw in parsed.parsed:
+        k = key(pw.date, pw.sport, pw.duration_min, pw.distance_km)
+        if k in existing_keys:
+            skipped_dup += 1
+            continue
+
+        cal = pw.calories
+        if cal is None:
+            cal = estimate_calories(pw.sport, athlete.weight_kg,
+                                    pw.distance_km, pw.duration_min)
+
+        db.add(Workout(
+            athlete_id=athlete.id,
+            date=pw.date,
+            sport=pw.sport,
+            distance_km=pw.distance_km,
+            duration_min=pw.duration_min,
+            calories=cal,
+            notes=pw.notes,
+        ))
+        existing_keys.add(k)
+        inserted += 1
+        by_sport[pw.sport] = by_sport.get(pw.sport, 0) + 1
+
+    db.commit()
+
+    result = {
+        "ok": True,
+        "filename": file.filename,
+        "total_rows": parsed.total_rows,
+        "inserted": inserted,
+        "skipped_dup": skipped_dup,
+        "skipped_bad": parsed.skipped_bad_row,
+        "by_sport": by_sport,
+        "detected_columns": parsed.detected_columns,
+    }
+    return templates.TemplateResponse(
+        "import.html",
+        {"request": request, "athlete": athlete,
+         "athletes": get_all_athletes(db), "result": result},
+    )
 
 
 # ------------- config (redirect legado) -------------
