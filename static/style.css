@@ -252,6 +252,7 @@ body {
 .card-cal .card-icon { background: rgba(249,115,22,0.15); color: #fb923c; }
 .card-days .card-icon { background: rgba(16,185,129,0.15); color: #34d399; }
 .card-gym .card-icon { background: rgba(239,68,68,0.15); color: #f87171; }
+.card-trail .card-icon { background: rgba(132,204,22,0.15); color: #a3e635; }
 
 .card-label {
     color: var(--muted);
@@ -360,6 +361,7 @@ body {
 .tag-swim { background: rgba(6,182,212,0.15); color: #22d3ee; }
 .tag-other { background: rgba(168,85,247,0.15); color: #c084fc; }
 .tag-gym { background: rgba(239,68,68,0.15); color: #f87171; }
+.tag-trail { background: rgba(132,204,22,0.15); color: #a3e635; }
 
 /* Athlete cards */
 .athlete-grid {

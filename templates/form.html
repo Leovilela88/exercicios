@@ -19,6 +19,7 @@
                 <option value="corrida">🏃 Corrida</option>
                 <option value="natacao">🏊 Natação</option>
                 <option value="musculacao">🏋️ Musculação</option>
+                <option value="trilha">🥾 Trilha / Caminhada</option>
                 <option value="outro">💪 Outro</option>
             </select>
         </label>
@@ -62,6 +63,7 @@
     const estText = document.getElementById('estimate-text');
 
     function toggleDistance() {
+        // Esportes sem distância: musculação e "outro"
         const hide = sport.value === 'musculacao' || sport.value === 'outro';
         distWrap.style.display = hide ? 'none' : '';
         if (hide) dist.value = '';

@@ -13,7 +13,7 @@ from db import Base, SessionLocal, engine, get_db
 from models import Athlete, Settings, Workout
 from strava_import import parse_strava_csv
 
-SPORTS = ("corrida", "natacao", "musculacao", "outro")
+SPORTS = ("corrida", "natacao", "musculacao", "trilha", "outro")
 
 
 def _init_db() -> None:
@@ -210,6 +210,10 @@ def dashboard(
         .filter(Workout.sport == "musculacao").scalar() or 0.0,
         "musculacao_sessoes": period_filter(db.query(func.count(Workout.id)))
         .filter(Workout.sport == "musculacao").scalar() or 0,
+        "trilha_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
+        .filter(Workout.sport == "trilha").scalar() or 0.0,
+        "trilha_sessoes": period_filter(db.query(func.count(Workout.id)))
+        .filter(Workout.sport == "trilha").scalar() or 0,
         "calorias": period_filter(db.query(func.coalesce(func.sum(Workout.calories), 0.0))).scalar() or 0.0,
         "dias_ativos": period_filter(db.query(func.count(func.distinct(Workout.date)))).scalar() or 0,
         "total_treinos": period_filter(db.query(func.count(Workout.id))).scalar() or 0,
@@ -316,7 +320,7 @@ def dashboard(
     breakdown_rows = aq(
         db.query(Workout.sport, func.count(Workout.id))
     ).filter(Workout.date >= start, Workout.date <= today).group_by(Workout.sport).all()
-    breakdown = {"corrida": 0, "natacao": 0, "musculacao": 0, "outro": 0}
+    breakdown = {"corrida": 0, "natacao": 0, "musculacao": 0, "trilha": 0, "outro": 0}
     for sport, count in breakdown_rows:
         if sport in breakdown:
             breakdown[sport] = int(count)

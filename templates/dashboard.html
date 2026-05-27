@@ -33,6 +33,14 @@
         <div class="card-label">Natação</div>
         <div class="card-value">{{ "%.1f"|format(totals.natacao_km) }}<span> km</span></div>
     </div>
+    <div class="card card-trail">
+        <div class="card-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m8 3 4 8 5-5 5 15H2L8 3z"/></svg>
+        </div>
+        <div class="card-label">Trilha</div>
+        <div class="card-value">{{ "%.1f"|format(totals.trilha_km) }}<span> km</span></div>
+        <div class="card-foot">{{ totals.trilha_sessoes }} {{ "sessão" if totals.trilha_sessoes == 1 else "sessões" }} no período</div>
+    </div>
     <div class="card card-gym">
         <div class="card-icon">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6.5 6.5 11 11"/><path d="m21 21-1-1"/><path d="m3 3 1 1"/><path d="m18 22 4-4"/><path d="m2 6 4-4"/><path d="m3 10 7-7"/><path d="m14 21 7-7"/></svg>
@@ -116,6 +124,7 @@
                         {% if w.sport == 'corrida' %}<span class="tag tag-run">Corrida</span>
                         {% elif w.sport == 'natacao' %}<span class="tag tag-swim">Natação</span>
                         {% elif w.sport == 'musculacao' %}<span class="tag tag-gym">Musculação</span>
+                        {% elif w.sport == 'trilha' %}<span class="tag tag-trail">Trilha</span>
                         {% else %}<span class="tag tag-other">Outro</span>{% endif %}
                     </td>
                     <td>{{ "%.2f"|format(w.distance_km) if w.distance_km else "—" }}</td>
@@ -255,10 +264,10 @@
     new Chart(document.getElementById('chartPie'), {
         type: 'doughnut',
         data: {
-            labels: ['Corrida', 'Natação', 'Musculação', 'Outro'],
+            labels: ['Corrida', 'Natação', 'Musculação', 'Trilha', 'Outro'],
             datasets: [{
-                data: [breakdown.corrida, breakdown.natacao, breakdown.musculacao, breakdown.outro],
-                backgroundColor: ['#3b82f6', '#06b6d4', '#ef4444', '#a855f7'],
+                data: [breakdown.corrida, breakdown.natacao, breakdown.musculacao, breakdown.trilha, breakdown.outro],
+                backgroundColor: ['#3b82f6', '#06b6d4', '#ef4444', '#84cc16', '#a855f7'],
                 borderColor: '#111a2e', borderWidth: 3,
             }]
         },

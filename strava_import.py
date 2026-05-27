@@ -69,6 +69,13 @@ SPORT_MAP = {
     "treinamentodeforca": "musculacao",
     "treinodeforca": "musculacao",
     "treinodepeso": "musculacao",
+    # trilha / caminhada (Hike, Walk, Trekking)
+    "hike": "trilha",
+    "walk": "trilha",
+    "trilha": "trilha",
+    "caminhada": "trilha",
+    "trekking": "trilha",
+    "caminhadaaoarlivre": "trilha",
 }
 
 
