@@ -155,6 +155,8 @@
     const weekLabels = {{ evo_labels|tojson }};
     const corridaWeek = {{ corrida_evo|tojson }};
     const natacaoWeek = {{ natacao_evo|tojson }};
+    const trilhaWeek = {{ trilha_evo|tojson }};
+    const musculacaoWeek = {{ musculacao_evo|tojson }};
     const breakdown = {{ breakdown|tojson }};
     const bucket = {{ bucket|tojson }};
 
@@ -243,20 +245,37 @@
         data: {
             labels: weekLabels,
             datasets: [
-                {label: 'Corrida (km)', data: corridaWeek, borderColor: '#3b82f6',
+                {label: 'Corrida (km)', data: corridaWeek, yAxisID: 'y', borderColor: '#3b82f6',
                  backgroundColor: 'rgba(59,130,246,0.1)', tension: 0.35, borderWidth: 2.5,
                  pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#3b82f6'},
-                {label: 'Natação (km)', data: natacaoWeek, borderColor: '#06b6d4',
+                {label: 'Natação (km)', data: natacaoWeek, yAxisID: 'y', borderColor: '#06b6d4',
                  backgroundColor: 'rgba(6,182,212,0.1)', tension: 0.35, borderWidth: 2.5,
                  pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#06b6d4'},
+                {label: 'Trilha (km)', data: trilhaWeek, yAxisID: 'y', borderColor: '#84cc16',
+                 backgroundColor: 'rgba(132,204,22,0.1)', tension: 0.35, borderWidth: 2.5,
+                 pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#84cc16'},
+                {label: 'Musculação (min)', data: musculacaoWeek, yAxisID: 'y1', borderColor: '#ef4444',
+                 backgroundColor: 'rgba(239,68,68,0.08)', tension: 0.35, borderWidth: 2.5,
+                 borderDash: [4, 3],
+                 pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#ef4444'},
             ]
         },
         options: {
             responsive: true, maintainAspectRatio: false,
+            interaction: {mode: 'index', intersect: false},
             plugins: {legend: {labels: {color: tickColor, usePointStyle: true, padding: 14}}, tooltip: tooltipStyle},
             scales: {
-                y: {beginAtZero: true, ticks: {color: tickColor, font: {size: 11}}, grid: {color: gridColor}},
-                x: {ticks: {color: tickColor, font: {size: 10}}, grid: {display: false}}
+                y: {
+                    type: 'linear', position: 'left', beginAtZero: true,
+                    ticks: {color: tickColor, font: {size: 11}}, grid: {color: gridColor},
+                    title: {display: true, text: 'km', color: tickColor, font: {size: 11}},
+                },
+                y1: {
+                    type: 'linear', position: 'right', beginAtZero: true,
+                    ticks: {color: tickColor, font: {size: 11}}, grid: {drawOnChartArea: false},
+                    title: {display: true, text: 'minutos', color: tickColor, font: {size: 11}},
+                },
+                x: {ticks: {color: tickColor, font: {size: 10}}, grid: {display: false}},
             }
         }
     });

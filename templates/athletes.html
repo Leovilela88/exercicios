@@ -6,6 +6,17 @@
         <h1 class="page-title">Atletas</h1>
         <p class="page-sub">Cada atleta tem seu próprio peso, perfil e histórico de treinos.</p>
     </div>
+    {% if db_dialect == 'postgresql' %}
+    <span class="db-badge db-ok" title="Postgres está conectado: dados persistem entre deploys">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+        Postgres (persistente)
+    </span>
+    {% else %}
+    <span class="db-badge db-warn" title="SQLite efêmero: os dados somem a cada deploy. Conecte o Postgres no Railway.">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 9v4M12 17h.01"/><circle cx="12" cy="12" r="10"/></svg>
+        SQLite (efêmero — dados somem no deploy)
+    </span>
+    {% endif %}
 </header>
 
 {% if seeded is not none %}

@@ -276,46 +276,41 @@ def dashboard(
             active_series.append(active_days)
 
     evo_rows = aq(
-        db.query(Workout.date, Workout.sport, Workout.distance_km)
+        db.query(Workout.date, Workout.sport, Workout.distance_km, Workout.duration_min)
     ).filter(
         Workout.date >= start, Workout.date <= today,
-        Workout.sport.in_(["corrida", "natacao"]),
+        Workout.sport.in_(["corrida", "natacao", "trilha", "musculacao"]),
     ).all()
     evo_labels = labels
     corrida_evo = [0.0] * len(labels)
     natacao_evo = [0.0] * len(labels)
-    if bucket == "day":
-        for d, sport, km in evo_rows:
-            if not km:
-                continue
-            idx = (d - start).days
-            if 0 <= idx < len(labels):
+    trilha_evo = [0.0] * len(labels)
+    musculacao_evo = [0.0] * len(labels)  # em minutos
+
+    def _bucket_idx(d: date) -> int:
+        if bucket == "day":
+            return (d - start).days
+        if bucket == "week":
+            first_monday = start - timedelta(days=start.weekday())
+            return (d - first_monday).days // 7
+        # month
+        return (d.year - start.year) * 12 + (d.month - start.month)
+
+    for d, sport, km, dur in evo_rows:
+        idx = _bucket_idx(d)
+        if not (0 <= idx < len(labels)):
+            continue
+        if sport == "musculacao":
+            if dur:
+                musculacao_evo[idx] += float(dur)
+        else:
+            if km:
                 if sport == "corrida":
                     corrida_evo[idx] += float(km)
-                else:
+                elif sport == "natacao":
                     natacao_evo[idx] += float(km)
-    elif bucket == "week":
-        first_monday = start - timedelta(days=start.weekday())
-        for d, sport, km in evo_rows:
-            if not km:
-                continue
-            idx = (d - first_monday).days // 7
-            if 0 <= idx < len(labels):
-                if sport == "corrida":
-                    corrida_evo[idx] += float(km)
-                else:
-                    natacao_evo[idx] += float(km)
-    else:  # month
-        sy, sm = start.year, start.month
-        for d, sport, km in evo_rows:
-            if not km:
-                continue
-            idx = (d.year - sy) * 12 + (d.month - sm)
-            if 0 <= idx < len(labels):
-                if sport == "corrida":
-                    corrida_evo[idx] += float(km)
-                else:
-                    natacao_evo[idx] += float(km)
+                elif sport == "trilha":
+                    trilha_evo[idx] += float(km)
 
     breakdown_rows = aq(
         db.query(Workout.sport, func.count(Workout.id))
@@ -343,6 +338,8 @@ def dashboard(
             "evo_labels": evo_labels,
             "corrida_evo": corrida_evo,
             "natacao_evo": natacao_evo,
+            "trilha_evo": trilha_evo,
+            "musculacao_evo": musculacao_evo,
             "bucket": bucket,
             "breakdown": breakdown,
             "recent": recent,
@@ -442,6 +439,7 @@ def athletes_page(
             "athlete": active,
             "athletes": get_all_athletes(db),
             "seeded": seeded,
+            "db_dialect": engine.dialect.name,
         },
     )
 
@@ -677,6 +675,22 @@ def config_redirect():
 
 
 # ------------- API -------------
+
+@app.get("/api/db-info")
+def api_db_info(db: Session = Depends(get_db)):
+    """Diagnóstico: mostra qual banco está em uso e contagem de registros.
+    Útil para confirmar se DATABASE_URL do Postgres está ativo no Railway."""
+    dialect = engine.dialect.name
+    # URL sem credenciais
+    url = str(engine.url).split("@")[-1] if "@" in str(engine.url) else str(engine.url)
+    return {
+        "dialect": dialect,
+        "persistente": dialect == "postgresql",
+        "host": url,
+        "athletes": db.query(func.count(Athlete.id)).scalar() or 0,
+        "workouts": db.query(func.count(Workout.id)).scalar() or 0,
+    }
+
 
 @app.get("/api/estimate")
 def api_estimate(
