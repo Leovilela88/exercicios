@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+{% block title %}Dashboard - Exercícios{% endblock %}
+{% block content %}
+<h1 class="page-title">Dashboard</h1>
+
+<section class="cards">
+    <div class="card card-run">
+        <div class="card-label">Corrida</div>
+        <div class="card-value">{{ "%.1f"|format(totals.corrida_km) }} <span>km</span></div>
+    </div>
+    <div class="card card-swim">
+        <div class="card-label">Natação</div>
+        <div class="card-value">{{ "%.1f"|format(totals.natacao_km) }} <span>km</span></div>
+    </div>
+    <div class="card card-cal">
+        <div class="card-label">Calorias queimadas</div>
+        <div class="card-value">{{ "%.0f"|format(totals.calorias) }} <span>kcal</span></div>
+    </div>
+    <div class="card card-days">
+        <div class="card-label">Dias ativos</div>
+        <div class="card-value">{{ totals.dias_ativos }} <span>dias</span></div>
+    </div>
+    <div class="card card-total">
+        <div class="card-label">Total de treinos</div>
+        <div class="card-value">{{ totals.total_treinos }}</div>
+    </div>
+</section>
+
+<section class="charts-grid">
+    <div class="chart-box">
+        <h2>Dias ativos (últimos 30 dias)</h2>
+        <canvas id="chartActive"></canvas>
+    </div>
+    <div class="chart-box">
+        <h2>Calorias por dia (últimos 30 dias)</h2>
+        <canvas id="chartCal"></canvas>
+    </div>
+    <div class="chart-box chart-wide">
+        <h2>Evolução semanal - km (últimas 12 semanas)</h2>
+        <canvas id="chartEvo"></canvas>
+    </div>
+</section>
+
+<section class="recent">
+    <h2>Últimos treinos</h2>
+    {% if recent %}
+    <table class="tbl">
+        <thead>
+        <tr>
+            <th>Data</th>
+            <th>Esporte</th>
+            <th>Distância</th>
+            <th>Duração</th>
+            <th>Calorias</th>
+            <th>Notas</th>
+            <th></th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for w in recent %}
+        <tr>
+            <td>{{ w.date.strftime('%d/%m/%Y') }}</td>
+            <td>
+                {% if w.sport == 'corrida' %}🏃 Corrida
+                {% elif w.sport == 'natacao' %}🏊 Natação
+                {% else %}💪 Outro{% endif %}
+            </td>
+            <td>{{ "%.2f km"|format(w.distance_km) if w.distance_km else "-" }}</td>
+            <td>{{ "%.0f min"|format(w.duration_min) if w.duration_min else "-" }}</td>
+            <td>{{ "%.0f kcal"|format(w.calories) if w.calories else "-" }}</td>
+            <td>{{ w.notes or "" }}</td>
+            <td>
+                <form method="post" action="/delete/{{ w.id }}" onsubmit="return confirm('Excluir treino?');">
+                    <button class="btn-danger" type="submit">×</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p class="empty">Nenhum treino registrado ainda. <a href="/novo">Adicione o primeiro!</a></p>
+    {% endif %}
+</section>
+
+<script>
+    const labels30 = {{ labels_30|tojson }};
+    const active30 = {{ active_30|tojson }};
+    const cal30 = {{ cal_30|tojson }};
+    const weekLabels = {{ week_labels|tojson }};
+    const corridaWeek = {{ corrida_per_week|tojson }};
+    const natacaoWeek = {{ natacao_per_week|tojson }};
+
+    const gridColor = 'rgba(148,163,184,0.15)';
+    const tickColor = '#94a3b8';
+
+    new Chart(document.getElementById('chartActive'), {
+        type: 'bar',
+        data: {
+            labels: labels30,
+            datasets: [{
+                label: 'Treinou',
+                data: active30,
+                backgroundColor: '#10b981',
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            plugins: {legend: {display: false}},
+            scales: {
+                y: {min: 0, max: 1, ticks: {stepSize: 1, color: tickColor}, grid: {color: gridColor}},
+                x: {ticks: {color: tickColor, maxRotation: 0, autoSkip: true}, grid: {display: false}}
+            }
+        }
+    });
+
+    new Chart(document.getElementById('chartCal'), {
+        type: 'line',
+        data: {
+            labels: labels30,
+            datasets: [{
+                label: 'Calorias',
+                data: cal30,
+                borderColor: '#f97316',
+                backgroundColor: 'rgba(249,115,22,0.2)',
+                fill: true,
+                tension: 0.3,
+            }]
+        },
+        options: {
+            plugins: {legend: {display: false}},
+            scales: {
+                y: {beginAtZero: true, ticks: {color: tickColor}, grid: {color: gridColor}},
+                x: {ticks: {color: tickColor, maxRotation: 0, autoSkip: true}, grid: {display: false}}
+            }
+        }
+    });
+
+    new Chart(document.getElementById('chartEvo'), {
+        type: 'line',
+        data: {
+            labels: weekLabels,
+            datasets: [
+                {
+                    label: 'Corrida (km)',
+                    data: corridaWeek,
+                    borderColor: '#3b82f6',
+                    backgroundColor: 'rgba(59,130,246,0.15)',
+                    tension: 0.3,
+                    fill: false,
+                },
+                {
+                    label: 'Natação (km)',
+                    data: natacaoWeek,
+                    borderColor: '#06b6d4',
+                    backgroundColor: 'rgba(6,182,212,0.15)',
+                    tension: 0.3,
+                    fill: false,
+                }
+            ]
+        },
+        options: {
+            plugins: {legend: {labels: {color: tickColor}}},
+            scales: {
+                y: {beginAtZero: true, ticks: {color: tickColor}, grid: {color: gridColor}},
+                x: {ticks: {color: tickColor}, grid: {display: false}}
+            }
+        }
+    });
+</script>
+{% endblock %}
