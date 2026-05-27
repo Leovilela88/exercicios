@@ -125,10 +125,13 @@ RANGE_OPTIONS = [
     ("6m", "6 meses"),
     ("1y", "1 ano"),
     ("ytd", "No ano"),
+    ("all", "Total"),
 ]
 
 
-def _resolve_range(range_key: str, today: date) -> tuple[date, str]:
+def _resolve_range(
+    range_key: str, today: date, earliest: Optional[date] = None
+) -> tuple[date, str]:
     key = range_key if range_key in dict(RANGE_OPTIONS) else "1m"
     if key == "1w":
         start = today - timedelta(days=6)
@@ -142,9 +145,27 @@ def _resolve_range(range_key: str, today: date) -> tuple[date, str]:
         start = today - timedelta(days=364)
     elif key == "ytd":
         start = date(today.year, 1, 1)
+    elif key == "all":
+        start = earliest if earliest else today - timedelta(days=29)
     else:
         start = today - timedelta(days=29)
     return start, key
+
+
+def _month_range(start: date, end: date):
+    """Yield (primeiro_do_mes, ultimo_do_mes) inclusive de start até end."""
+    y, m = start.year, start.month
+    while (y, m) <= (end.year, end.month):
+        first = date(y, m, 1)
+        if m == 12:
+            next_first = date(y + 1, 1, 1)
+        else:
+            next_first = date(y, m + 1, 1)
+        yield first, next_first - timedelta(days=1)
+        if m == 12:
+            y, m = y + 1, 1
+        else:
+            m += 1
 
 
 # ------------- dashboard -------------
@@ -157,9 +178,19 @@ def dashboard(
 ):
     athlete = get_active_athlete(request, db)
     today = date.today()
-    start, range_key = _resolve_range(range_, today)
+    earliest = (
+        db.query(func.min(Workout.date))
+        .filter(Workout.athlete_id == athlete.id)
+        .scalar()
+    )
+    start, range_key = _resolve_range(range_, today, earliest=earliest)
     span_days = (today - start).days + 1
-    bucket = "day" if span_days <= 90 else "week"
+    if span_days <= 90:
+        bucket = "day"
+    elif span_days <= 365 * 2:  # até ~2 anos: semanal
+        bucket = "week"
+    else:
+        bucket = "month"
 
     aq = lambda q: q.filter(Workout.athlete_id == athlete.id)
 
@@ -219,7 +250,7 @@ def dashboard(
             labels.append(d.strftime("%d/%m"))
             cal_series.append(info["cal"])
             active_series.append(1 if info["count"] > 0 else 0)
-    else:
+    elif bucket == "week":
         first_monday = start - timedelta(days=start.weekday())
         cur = first_monday
         while cur <= today:
@@ -238,6 +269,18 @@ def dashboard(
             cal_series.append(cal_sum)
             active_series.append(active_days)
             cur += timedelta(days=7)
+    else:  # month
+        for first, last in _month_range(start, today):
+            cal_sum = 0.0
+            active_days = 0
+            for d, info in by_day.items():
+                if first <= d <= min(last, today):
+                    cal_sum += info["cal"]
+                    if info["count"] > 0:
+                        active_days += 1
+            labels.append(first.strftime("%b/%y"))
+            cal_series.append(cal_sum)
+            active_series.append(active_days)
 
     evo_rows = aq(
         db.query(Workout.date, Workout.sport, Workout.distance_km)
@@ -258,12 +301,23 @@ def dashboard(
                     corrida_evo[idx] += float(km)
                 else:
                     natacao_evo[idx] += float(km)
-    else:
+    elif bucket == "week":
         first_monday = start - timedelta(days=start.weekday())
         for d, sport, km in evo_rows:
             if not km:
                 continue
             idx = (d - first_monday).days // 7
+            if 0 <= idx < len(labels):
+                if sport == "corrida":
+                    corrida_evo[idx] += float(km)
+                else:
+                    natacao_evo[idx] += float(km)
+    else:  # month
+        sy, sm = start.year, start.month
+        for d, sport, km in evo_rows:
+            if not km:
+                continue
+            idx = (d.year - sy) * 12 + (d.month - sm)
             if 0 <= idx < len(labels):
                 if sport == "corrida":
                     corrida_evo[idx] += float(km)
@@ -328,7 +382,7 @@ def create_workout(
     request: Request,
     sport: str = Form(...),
     workout_date: str = Form(...),
-    distance_km: Optional[str] = Form(None),
+    distance_m: Optional[str] = Form(None),
     duration_min: Optional[str] = Form(None),
     calories: Optional[str] = Form(None),
     notes: Optional[str] = Form(None),
@@ -342,7 +396,8 @@ def create_workout(
         d = date.today()
 
     athlete = get_active_athlete(request, db)
-    dist = _to_float(distance_km)
+    dist_m_val = _to_float(distance_m)
+    dist = (dist_m_val / 1000.0) if dist_m_val else None
     dur = _to_float(duration_min)
     cal = _to_float(calories)
 
@@ -591,10 +646,13 @@ def api_estimate(
     request: Request,
     sport: str,
     distance_km: Optional[float] = None,
+    distance_m: Optional[float] = None,
     duration_min: Optional[float] = None,
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
+    if distance_km is None and distance_m is not None:
+        distance_km = distance_m / 1000.0
     kcal = estimate_calories(sport, athlete.weight_kg, distance_km, duration_min)
     return JSONResponse({
         "kcal": kcal,

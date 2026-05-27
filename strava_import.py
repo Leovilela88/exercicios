@@ -121,13 +121,10 @@ def _to_float(value: str) -> Optional[float]:
 
 
 def _km_from_distance(raw: Optional[float]) -> Optional[float]:
-    """Strava varia entre metros e quilômetros entre versões do export.
-    Heurística: > 1000 → metros; senão → km."""
+    """Strava exporta distância sempre em metros. Sempre dividimos por 1000."""
     if raw is None:
         return None
-    if raw > 1000:
-        return round(raw / 1000.0, 3)
-    return round(raw, 3)
+    return round(raw / 1000.0, 3)
 
 
 @dataclass

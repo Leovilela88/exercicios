@@ -64,7 +64,7 @@
 <section class="charts-grid">
     {% set range_label_map = dict(range_options) %}
     {% set range_label = range_label_map[range_key] %}
-    {% set bucket_label = 'por semana' if bucket == 'week' else 'por dia' %}
+    {% set bucket_label = {'day': 'por dia', 'week': 'por semana', 'month': 'por mês'}[bucket] %}
     <div class="chart-box">
         <div class="chart-header">
             <h2>Dias ativos</h2>
@@ -81,7 +81,7 @@
     </div>
     <div class="chart-box chart-wide">
         <div class="chart-header">
-            <h2>Evolução {{ 'semanal' if bucket == 'week' else 'diária' }}</h2>
+            <h2>Evolução {{ {'day': 'diária', 'week': 'semanal', 'month': 'mensal'}[bucket] }}</h2>
             <span class="chart-sub">km por esporte · {{ range_label }}</span>
         </div>
         <canvas id="chartEvo"></canvas>
@@ -178,7 +178,9 @@
                 backgroundColor: ctx => {
                     const v = ctx.raw || 0;
                     if (v === 0) return 'rgba(148,163,184,0.15)';
-                    const intensity = bucket === 'week' ? (0.35 + 0.65 * (v / 7)) : 1;
+                    let intensity = 1;
+                    if (bucket === 'week') intensity = 0.35 + 0.65 * (v / 7);
+                    else if (bucket === 'month') intensity = 0.35 + 0.65 * Math.min(v / 22, 1);
                     return `rgba(16,185,129,${intensity})`;
                 },
                 borderRadius: 3,
@@ -190,14 +192,18 @@
             plugins: {
                 legend: {display: false},
                 tooltip: {...tooltipStyle, callbacks: {
-                    label: c => bucket === 'week'
-                        ? `${c.raw} ${c.raw === 1 ? 'dia ativo' : 'dias ativos'} na semana`
-                        : (c.raw === 1 ? 'Treinou' : 'Sem treino')
+                    label: c => {
+                        if (bucket === 'week') return `${c.raw} ${c.raw === 1 ? 'dia ativo' : 'dias ativos'} na semana`;
+                        if (bucket === 'month') return `${c.raw} ${c.raw === 1 ? 'dia ativo' : 'dias ativos'} no mês`;
+                        return c.raw === 1 ? 'Treinou' : 'Sem treino';
+                    }
                 }}
             },
             scales: {
                 y: bucket === 'week'
                     ? {beginAtZero: true, max: 7, ticks: {color: tickColor, stepSize: 1, font: {size: 11}}, grid: {color: gridColor}}
+                    : bucket === 'month'
+                    ? {beginAtZero: true, ticks: {color: tickColor, stepSize: 5, font: {size: 11}}, grid: {color: gridColor}}
                     : {display: false, min: 0, max: 1},
                 x: {ticks: {color: tickColor, maxRotation: 0, autoSkip: true, font: {size: 10}}, grid: {display: false}}
             }
