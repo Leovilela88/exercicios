@@ -7,7 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=3" />
+    <link rel="stylesheet" href="/static/style.css?v=4" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -18,8 +18,33 @@
             <span>Exercícios</span>
         </a>
         <div class="nav-links">
+            {% if athletes and athletes|length > 0 %}
+            <details class="athlete-switch">
+                <summary>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a7 7 0 0 1 14 0v1"/></svg>
+                    <span>{{ athlete.name if athlete else "Atleta" }}</span>
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+                </summary>
+                <div class="dropdown">
+                    {% for a in athletes %}
+                    <form method="post" action="/atletas/{{ a.id }}/select">
+                        <button type="submit" class="dropdown-item {% if athlete and a.id == athlete.id %}active{% endif %}">
+                            {{ a.name }}
+                            {% if athlete and a.id == athlete.id %}
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>
+                            {% endif %}
+                        </button>
+                    </form>
+                    {% endfor %}
+                    <a href="/atletas" class="dropdown-item">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+                        Gerenciar atletas
+                    </a>
+                </div>
+            </details>
+            {% endif %}
             <a href="/" class="{% if request.url.path == '/' %}active{% endif %}">Dashboard</a>
-            <a href="/config" class="{% if request.url.path == '/config' %}active{% endif %}">Ajustes</a>
+            <a href="/atletas" class="{% if request.url.path == '/atletas' %}active{% endif %}">Atletas</a>
             <a href="/novo" class="btn-primary">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
                 Novo treino
