@@ -8,6 +8,14 @@
     </div>
 </header>
 
+{% if seeded is not none %}
+<div class="alert alert-success">
+    <strong>{{ seeded }} treino{{ 's' if seeded != 1 else '' }} de natação adicionado{{ 's' if seeded != 1 else '' }}</strong>
+    para <strong>{{ athlete.name }}</strong> (terças e quintas do último ano · 50 min · 1800 m).
+    {% if seeded == 0 %} Nenhum novo — provavelmente já estavam cadastrados.{% endif %}
+</div>
+{% endif %}
+
 <section class="athlete-grid">
     {% for a in athletes %}
     <article class="athlete-card {% if athlete and a.id == athlete.id %}is-active{% endif %}">
@@ -66,6 +74,17 @@
         </form>
     </article>
     {% endfor %}
+</section>
+
+<section class="help-box" style="margin-top: 24px;">
+    <h2>Agenda fixa de natação</h2>
+    <p class="hint" style="margin-bottom: 14px;">
+        Adiciona <strong>50 min · 1800 m</strong> de natação em <strong>toda terça e quinta dos últimos 365 dias</strong>
+        para o atleta ativo (<strong>{{ athlete.name }}</strong>). É seguro rodar várias vezes — duplicatas são ignoradas.
+    </p>
+    <form method="post" action="/admin/seed-swim" onsubmit="return confirm('Adicionar todas as terças e quintas do último ano para {{ athlete.name }}?');">
+        <button type="submit" class="btn-primary">+ Importar agenda fixa de natação</button>
+    </form>
 </section>
 
 <section class="form" style="margin-top: 24px;">

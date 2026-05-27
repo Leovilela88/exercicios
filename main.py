@@ -194,41 +194,30 @@ def dashboard(
 
     aq = lambda q: q.filter(Workout.athlete_id == athlete.id)
 
+    # Filtros do período (mesmo recorte dos gráficos)
+    period_filter = lambda q: q.filter(
+        Workout.athlete_id == athlete.id,
+        Workout.date >= start,
+        Workout.date <= today,
+    )
+
     totals = {
-        "corrida_km": aq(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
+        "corrida_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
         .filter(Workout.sport == "corrida").scalar() or 0.0,
-        "natacao_km": aq(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
+        "natacao_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
         .filter(Workout.sport == "natacao").scalar() or 0.0,
-        "musculacao_min": aq(db.query(func.coalesce(func.sum(Workout.duration_min), 0.0)))
+        "musculacao_min": period_filter(db.query(func.coalesce(func.sum(Workout.duration_min), 0.0)))
         .filter(Workout.sport == "musculacao").scalar() or 0.0,
-        "musculacao_sessoes": aq(db.query(func.count(Workout.id)))
+        "musculacao_sessoes": period_filter(db.query(func.count(Workout.id)))
         .filter(Workout.sport == "musculacao").scalar() or 0,
-        "calorias": aq(db.query(func.coalesce(func.sum(Workout.calories), 0.0))).scalar() or 0.0,
-        "dias_ativos": aq(db.query(func.count(func.distinct(Workout.date)))).scalar() or 0,
-        "total_treinos": aq(db.query(func.count(Workout.id))).scalar() or 0,
+        "calorias": period_filter(db.query(func.coalesce(func.sum(Workout.calories), 0.0))).scalar() or 0.0,
+        "dias_ativos": period_filter(db.query(func.count(func.distinct(Workout.date)))).scalar() or 0,
+        "total_treinos": period_filter(db.query(func.count(Workout.id))).scalar() or 0,
     }
 
+    # Streak permanece all-time (é uma métrica de "agora", não de período)
     all_dates = {r[0] for r in aq(db.query(func.distinct(Workout.date))).all()}
     streak = _current_streak(all_dates, today)
-
-    week_start = today - timedelta(days=today.weekday())
-    week_rows = aq(
-        db.query(Workout.sport, func.coalesce(func.sum(Workout.distance_km), 0.0),
-                 func.coalesce(func.sum(Workout.duration_min), 0.0),
-                 func.coalesce(func.sum(Workout.calories), 0.0),
-                 func.count(Workout.id))
-    ).filter(Workout.date >= week_start).group_by(Workout.sport).all()
-    week = {"corrida_km": 0.0, "natacao_km": 0.0, "musculacao_min": 0.0,
-            "musculacao_sessoes": 0, "calorias": 0.0}
-    for sport, km, dur, cal, count in week_rows:
-        if sport == "corrida":
-            week["corrida_km"] = float(km or 0)
-        elif sport == "natacao":
-            week["natacao_km"] = float(km or 0)
-        elif sport == "musculacao":
-            week["musculacao_min"] = float(dur or 0)
-            week["musculacao_sessoes"] = int(count or 0)
-        week["calorias"] += float(cal or 0)
 
     range_rows = aq(
         db.query(
@@ -343,7 +332,6 @@ def dashboard(
             "athlete": athlete,
             "athletes": get_all_athletes(db),
             "totals": totals,
-            "week": week,
             "streak": streak,
             "labels": labels,
             "cal_series": cal_series,
@@ -437,7 +425,11 @@ def delete_workout(
 # ------------- atletas -------------
 
 @app.get("/atletas", response_class=HTMLResponse)
-def athletes_page(request: Request, db: Session = Depends(get_db)):
+def athletes_page(
+    request: Request,
+    seeded: Optional[int] = None,
+    db: Session = Depends(get_db),
+):
     active = get_active_athlete(request, db)
     return templates.TemplateResponse(
         "athletes.html",
@@ -445,6 +437,7 @@ def athletes_page(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "athlete": active,
             "athletes": get_all_athletes(db),
+            "seeded": seeded,
         },
     )
 
@@ -522,6 +515,46 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
     if request.cookies.get("athlete_id") == str(aid):
         resp.delete_cookie("athlete_id")
     return resp
+
+
+# ------------- seed / agenda fixa -------------
+
+@app.post("/admin/seed-swim")
+def admin_seed_swim(request: Request, db: Session = Depends(get_db)):
+    """Cria 50min/1800m de natação em toda terça e quinta do último ano
+    (365 dias) para o atleta ativo. Idempotente — duplicatas são ignoradas."""
+    athlete = get_active_athlete(request, db)
+    today = date.today()
+    start = today - timedelta(days=365)
+
+    existing = {
+        d for (d,) in db.query(Workout.date).filter(
+            Workout.athlete_id == athlete.id,
+            Workout.sport == "natacao",
+            Workout.duration_min == 50,
+            Workout.distance_km == 1.8,
+        ).all()
+    }
+
+    inserted = 0
+    d = start
+    while d <= today:
+        if d.weekday() in (1, 3) and d not in existing:  # 1=ter, 3=qui
+            cal = estimate_calories("natacao", athlete.weight_kg, 1.8, 50)
+            db.add(Workout(
+                athlete_id=athlete.id,
+                date=d,
+                sport="natacao",
+                distance_km=1.8,
+                duration_min=50,
+                calories=cal,
+                notes="Agenda fixa (terça/quinta)",
+            ))
+            inserted += 1
+        d += timedelta(days=1)
+    db.commit()
+
+    return RedirectResponse(url=f"/atletas?seeded={inserted}", status_code=303)
 
 
 # ------------- importar -------------
