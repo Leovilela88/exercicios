@@ -2,6 +2,8 @@ from datetime import date, timedelta
 from typing import Optional
 
 import io
+from dataclasses import dataclass
+from typing import Callable
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -476,6 +478,7 @@ def delete_workout(
 def athletes_page(
     request: Request,
     seeded: Optional[int] = None,
+    kind: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     active = get_active_athlete(request, db)
@@ -486,6 +489,8 @@ def athletes_page(
             "athlete": active,
             "athletes": get_all_athletes(db),
             "seeded": seeded,
+            "seed_kind": kind,
+            "seed_types": SEED_TYPES,
             "db_dialect": engine.dialect.name,
         },
     )
@@ -623,42 +628,86 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
 
 # ------------- seed / agenda fixa -------------
 
-@app.post("/admin/seed-swim")
-def admin_seed_swim(request: Request, db: Session = Depends(get_db)):
-    """Cria 50min/1800m de natação em toda terça e quinta do último ano
-    (365 dias) para o atleta ativo. Idempotente — duplicatas são ignoradas."""
-    athlete = get_active_athlete(request, db)
-    today = date.today()
-    start = today - timedelta(days=365)
+@dataclass(frozen=True)
+class SeedType:
+    sport: str
+    distance_km: Optional[float]
+    days_back: int
+    weekdays: frozenset       # int weekday() values
+    duration_fn: Callable[[date], int]
+    notes: str
+    nome: str                 # rótulo do esporte, ex: "natação"
+    icone: str                # emoji do botão
+    descricao: str            # subtítulo / texto do alerta
 
+
+# Lookup pra musculação: (weekday, semana_par/ímpar) -> minutos
+_GYM_DUR = {(2, 0): 45, (2, 1): 50, (3, 0): 55, (3, 1): 60}
+
+SEED_TYPES: dict[str, SeedType] = {
+    "swim": SeedType(
+        sport="natacao", distance_km=1.8,
+        days_back=365, weekdays=frozenset({1, 3}),
+        duration_fn=lambda _: 50,
+        notes="Agenda fixa (terça/quinta)",
+        nome="natação", icone="🏊",
+        descricao="Terça e quinta · 50 min · 1800 m · 1 ano",
+    ),
+    "gym": SeedType(
+        sport="musculacao", distance_km=None,
+        days_back=120, weekdays=frozenset({2, 3}),
+        duration_fn=lambda d: _GYM_DUR[(d.weekday(), d.isocalendar().week % 2)],
+        notes="Agenda fixa (quarta/quinta)",
+        nome="musculação", icone="🏋️",
+        descricao="Quarta e quinta · 45–60 min · 4 meses",
+    ),
+}
+
+
+def _seed_workouts(db: Session, athlete: Athlete, cfg: SeedType) -> int:
+    """Idempotente por data. duration_fn é determinístico — re-rodar não duplica."""
+    today = date.today()
+    start = today - timedelta(days=cfg.days_back)
+
+    dist_filter = (Workout.distance_km.is_(None) if cfg.distance_km is None
+                   else Workout.distance_km == cfg.distance_km)
     existing = {
         d for (d,) in db.query(Workout.date).filter(
             Workout.athlete_id == athlete.id,
-            Workout.sport == "natacao",
-            Workout.duration_min == 50,
-            Workout.distance_km == 1.8,
+            Workout.sport == cfg.sport,
+            dist_filter,
         ).all()
     }
 
+    kcal_cache: dict[int, Optional[float]] = {}
     inserted = 0
     d = start
     while d <= today:
-        if d.weekday() in (1, 3) and d not in existing:  # 1=ter, 3=qui
-            cal = estimate_calories("natacao", athlete.weight_kg, 1.8, 50)
+        if d.weekday() in cfg.weekdays and d not in existing:
+            dur = cfg.duration_fn(d)
+            if dur not in kcal_cache:
+                kcal_cache[dur] = estimate_calories(
+                    cfg.sport, athlete.weight_kg, cfg.distance_km, dur
+                )
             db.add(Workout(
-                athlete_id=athlete.id,
-                date=d,
-                sport="natacao",
-                distance_km=1.8,
-                duration_min=50,
-                calories=cal,
-                notes="Agenda fixa (terça/quinta)",
+                athlete_id=athlete.id, date=d, sport=cfg.sport,
+                distance_km=cfg.distance_km, duration_min=dur,
+                calories=kcal_cache[dur], notes=cfg.notes,
             ))
             inserted += 1
         d += timedelta(days=1)
     db.commit()
+    return inserted
 
-    return RedirectResponse(url=f"/atletas?seeded={inserted}", status_code=303)
+
+@app.post("/admin/seed/{kind}")
+def admin_seed(kind: str, request: Request, db: Session = Depends(get_db)):
+    cfg = SEED_TYPES.get(kind)
+    if not cfg:
+        raise HTTPException(status_code=404, detail="Tipo de seed desconhecido")
+    athlete = get_active_athlete(request, db)
+    n = _seed_workouts(db, athlete, cfg)
+    return RedirectResponse(url=f"/atletas?seeded={n}&kind={kind}", status_code=303)
 
 
 # ------------- importar -------------
