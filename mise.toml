@@ -1,0 +1,9 @@
+[tools]
+python = "3.11.9"
+
+[settings]
+# O builder do Railway usa mise. Versões do python-build-standalone de meados
+# de 2024 (como a 3.11.9) não têm GitHub artifact attestations no formato que o
+# mise novo exige, e o build falha em "verify GitHub artifact attestations".
+# Desligar a verificação destrava o build.
+python.github_attestations = false
