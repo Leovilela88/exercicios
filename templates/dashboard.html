@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import bicon %}
 {% block title %}Dashboard - Exercícios{% endblock %}
 {% block content %}
 <header class="page-header">
@@ -204,13 +205,13 @@
     </div>
     <div class="badge-strip">
         {% for item in badges.unlocked[:8] %}
-        <span class="badge-chip" title="{{ item.badge.title }} — {{ item.badge.desc }}">{{ item.badge.icon }}</span>
+        <span class="badge-chip" style="color: {{ item.badge.color }}; background: {{ item.badge.color }}1f; border-color: {{ item.badge.color }}40;" title="{{ item.badge.title }} — {{ item.badge.desc }}">{{ bicon(item.badge.icon) }}</span>
         {% endfor %}
         {% for item in badges.locked[:3] %}
-        <span class="badge-chip badge-chip-locked" title="{{ item.badge.title }} — {{ item.badge.desc }} ({{ item.pct }}%)">{{ item.badge.icon }}</span>
+        <span class="badge-chip badge-chip-locked" title="{{ item.badge.title }} — {{ item.badge.desc }} ({{ item.pct }}%)">{{ bicon(item.badge.icon) }}</span>
         {% endfor %}
         {% if not badges.unlocked %}
-        <span class="empty">Nenhuma conquista ainda — bora treinar! 💪</span>
+        <span class="empty">Nenhuma conquista ainda — bora treinar!</span>
         {% endif %}
     </div>
 </section>
@@ -219,21 +220,33 @@
 <section class="panel-section">
     <div class="section-head">
         <h2>Mapa de atividade</h2>
-        <span class="section-sub">{{ heatmap.active_days }} dias ativos · {{ heatmap.total }} treinos</span>
+        <span class="section-sub">{{ heatmap.active_days }} dias ativos · {{ heatmap.total }} treinos (últimos ~6 meses)</span>
     </div>
+    <p class="hint" style="margin: 0 0 12px;">Cada quadradinho é um dia. Da esquerda para a direita, semana a semana; de cima para baixo, segunda a domingo. Quanto mais azul, mais treinos naquele dia.</p>
     <div class="heatmap-wrap">
-        <div class="heatmap">
-            {% for week in heatmap.grid %}
-            <div class="hm-week">
-                {% for cell in week %}
-                {% if cell %}
-                <span class="hm-cell hm-l{{ cell.level }}" title="{{ cell.date.strftime('%d/%m/%Y') }} · {{ cell.count }} treino{{ 's' if cell.count != 1 else '' }}"></span>
-                {% else %}
-                <span class="hm-cell hm-empty"></span>
-                {% endif %}
-                {% endfor %}
+        <div class="heatmap-scroll">
+            <div class="hm-months">
+                <span class="hm-day-spacer"></span>
+                {% for m in heatmap.months %}<span class="hm-month">{{ m }}</span>{% endfor %}
             </div>
-            {% endfor %}
+            <div class="heatmap-body">
+                <div class="hm-daylabels">
+                    <span>Seg</span><span></span><span>Qua</span><span></span><span>Sex</span><span></span><span></span>
+                </div>
+                <div class="heatmap">
+                    {% for week in heatmap.grid %}
+                    <div class="hm-week">
+                        {% for cell in week %}
+                        {% if cell %}
+                        <span class="hm-cell hm-l{{ cell.level }}" title="{{ cell.date.strftime('%d/%m/%Y') }} · {{ cell.count }} treino{{ 's' if cell.count != 1 else '' }}"></span>
+                        {% else %}
+                        <span class="hm-cell hm-empty"></span>
+                        {% endif %}
+                        {% endfor %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
         </div>
         <div class="hm-legend">
             <span>menos</span>

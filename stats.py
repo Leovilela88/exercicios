@@ -206,6 +206,10 @@ def current_streak(db: Session, athlete_id: int, today: date) -> int:
 
 # ------------- mapa de calor -------------
 
+_MONTH_PT = ["", "jan", "fev", "mar", "abr", "mai", "jun",
+             "jul", "ago", "set", "out", "nov", "dez"]
+
+
 def activity_heatmap(db: Session, athlete_id: int, today: date, weeks: int = 27) -> dict:
     """Grade tipo GitHub: colunas = semanas, linhas = dias (seg→dom).
     Nível 0–4 por nº de treinos no dia."""
@@ -248,7 +252,7 @@ def activity_heatmap(db: Session, athlete_id: int, today: date, weeks: int = 27)
                 col_month = d.month
         # rótulo do mês: mostra quando muda
         if col_month and col_month != last_month:
-            months.append(date(today.year, col_month, 1).strftime("%b"))
+            months.append(_MONTH_PT[col_month])
             last_month = col_month
         else:
             months.append("")
