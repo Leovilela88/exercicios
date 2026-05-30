@@ -397,7 +397,7 @@ def dashboard(
         .order_by(Goal.id).all()
     )
     goals_progress = [stats.goal_progress(db, athlete.id, g, today) for g in goals]
-    heatmap = stats.activity_heatmap(db, athlete.id, today)
+    calendars = stats.monthly_calendars(db, athlete.id, today)
     badges = achievements.evaluate(db, athlete.id)
     pace_run = stats.pace_trend(db, athlete.id, today, "corrida")
     pace_swim = stats.pace_trend(db, athlete.id, today, "natacao")
@@ -413,7 +413,7 @@ def dashboard(
             "comparison": comparison,
             "records": records,
             "goals_progress": goals_progress,
-            "heatmap": heatmap,
+            "calendars": calendars,
             "badges": badges,
             "pace_run": pace_run,
             "pace_swim": pace_swim,

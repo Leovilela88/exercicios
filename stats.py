@@ -206,15 +206,30 @@ def current_streak(db: Session, athlete_id: int, today: date) -> int:
 
 # ------------- mapa de calor -------------
 
-_MONTH_PT = ["", "jan", "fev", "mar", "abr", "mai", "jun",
-             "jul", "ago", "set", "out", "nov", "dez"]
+_MONTH_PT = ["", "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+             "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"]
 
 
-def activity_heatmap(db: Session, athlete_id: int, today: date, weeks: int = 27) -> dict:
-    """Grade tipo GitHub: colunas = semanas, linhas = dias (seg→dom).
-    Nível 0–4 por nº de treinos no dia."""
-    # começa na segunda-feira, `weeks` semanas atrás
-    start = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks - 1)
+def _level(n: int) -> int:
+    if n <= 0:
+        return 0
+    return min(n, 4)
+
+
+def monthly_calendars(db: Session, athlete_id: int, today: date, months: int = 3) -> dict:
+    """Mini-calendários mensais tradicionais (domingo→sábado) dos últimos N meses,
+    com os dias coloridos por nº de treinos. Formato familiar para qualquer um."""
+    # lista de (ano, mês), do mais antigo ao atual
+    ym = []
+    y, m = today.year, today.month
+    for _ in range(months):
+        ym.append((y, m))
+        m -= 1
+        if m == 0:
+            y, m = y - 1, 12
+    ym.reverse()
+
+    start = date(ym[0][0], ym[0][1], 1)
     rows = (
         db.query(Workout.date, func.count(Workout.id))
         .filter(Workout.athlete_id == athlete_id,
@@ -223,46 +238,36 @@ def activity_heatmap(db: Session, athlete_id: int, today: date, weeks: int = 27)
     )
     counts = {_as_date(d): int(c) for d, c in rows}
 
-    def level(n: int) -> int:
-        if n <= 0:
-            return 0
-        if n == 1:
-            return 1
-        if n == 2:
-            return 2
-        if n == 3:
-            return 3
-        return 4
-
-    grid = []  # lista de semanas; cada semana = lista de 7 células
-    cur = start
-    months = []  # rótulos de mês por coluna
-    last_month = None
-    while cur <= today:
-        week_cells = []
-        col_month = None
-        for i in range(7):
-            d = cur + timedelta(days=i)
-            if d > today:
-                week_cells.append(None)
-                continue
-            n = counts.get(d, 0)
-            week_cells.append({"date": d, "count": n, "level": level(n)})
-            if col_month is None:
-                col_month = d.month
-        # rótulo do mês: mostra quando muda
-        if col_month and col_month != last_month:
-            months.append(_MONTH_PT[col_month])
-            last_month = col_month
-        else:
-            months.append("")
-        grid.append(week_cells)
-        cur += timedelta(weeks=1)
+    cal = calendar.Calendar(firstweekday=6)  # 6 = domingo como 1ª coluna
+    out_months = []
+    for yy, mm in ym:
+        weeks = []
+        for week in cal.monthdatescalendar(yy, mm):
+            cells = []
+            for d in week:
+                if d.month != mm:
+                    cells.append(None)  # dia de outro mês (espaço vazio)
+                    continue
+                n = counts.get(d, 0)
+                cells.append({
+                    "day": d.day, "count": n, "level": _level(n),
+                    "is_today": d == today, "is_future": d > today,
+                })
+            weeks.append(cells)
+        out_months.append({
+            "name": f"{_MONTH_PT[mm]} {yy}",
+            "weeks": weeks,
+        })
 
     total = sum(counts.values())
     active_days = sum(1 for n in counts.values() if n > 0)
-    return {"grid": grid, "months": months, "total": total,
-            "active_days": active_days, "weeks": len(grid)}
+    return {
+        "months": out_months,
+        "weekdays": ["D", "S", "T", "Q", "Q", "S", "S"],
+        "total": total,
+        "active_days": active_days,
+        "n_months": months,
+    }
 
 
 # ------------- ranking entre atletas -------------

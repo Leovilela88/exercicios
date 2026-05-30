@@ -541,72 +541,72 @@ body {
 .badge-fill { height: 100%; background: var(--accent); border-radius: 100px; }
 .badge-pct { font-size: 0.72rem; color: var(--muted); }
 
-/* ---------- Mapa de calor ---------- */
-.heatmap-wrap {
+/* ---------- Calendário de treinos ---------- */
+.cal-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+}
+.cal-month {
     background: var(--panel);
     border: 1px solid var(--border);
     border-radius: 14px;
-    padding: 18px;
+    padding: 16px 18px;
     box-shadow: var(--shadow);
-    overflow-x: auto;
 }
-.heatmap-scroll { min-width: min-content; }
-.heatmap-body { display: flex; gap: 6px; }
-.heatmap {
-    display: flex;
+.cal-title {
+    font-size: 0.95rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 12px;
+    text-align: center;
+}
+.cal-weekdays, .cal-days {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
     gap: 4px;
-    min-width: min-content;
 }
-.hm-week { display: flex; flex-direction: column; gap: 4px; }
-.hm-cell {
-    width: 14px;
-    height: 14px;
-    border-radius: 3px;
-    display: block;
-}
-/* rótulos de dia da semana (coluna esquerda) */
-.hm-daylabels {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex-shrink: 0;
-}
-.hm-daylabels span {
-    height: 14px;
-    font-size: 0.66rem;
-    color: var(--muted);
-    line-height: 14px;
-    width: 26px;
-    text-align: right;
-}
-/* rótulos de mês (linha superior) */
-.hm-months {
-    display: flex;
+.cal-weekdays {
     margin-bottom: 6px;
 }
-.hm-day-spacer { width: 32px; flex-shrink: 0; }
-.hm-month {
-    width: 18px;          /* 14px célula + 4px gap = passo de uma semana */
-    flex-shrink: 0;
-    font-size: 0.66rem;
-    color: var(--muted);
-    white-space: nowrap;
-    overflow: visible;
+.cal-weekdays span {
+    text-align: center;
+    font-size: 0.68rem;
+    color: var(--muted-2);
+    font-weight: 600;
 }
-.hm-empty { background: transparent; }
-.hm-l0 { background: var(--panel-2); }
-.hm-l1 { background: rgba(59,130,246,0.35); }
-.hm-l2 { background: rgba(59,130,246,0.6); }
-.hm-l3 { background: rgba(59,130,246,0.8); }
-.hm-l4 { background: #3b82f6; }
-.hm-legend {
+.cal-day {
+    aspect-ratio: 1;
     display: flex;
     align-items: center;
-    gap: 5px;
-    margin-top: 12px;
-    font-size: 0.75rem;
+    justify-content: center;
+    font-size: 0.72rem;
+    border-radius: 7px;
     color: var(--muted);
 }
+.cal-blank { background: transparent; }
+.cal-l0 { background: var(--panel-2); color: var(--muted-2); }
+.cal-l1 { background: rgba(59,130,246,0.30); color: #dbeafe; }
+.cal-l2 { background: rgba(59,130,246,0.55); color: #fff; }
+.cal-l3 { background: rgba(59,130,246,0.78); color: #fff; }
+.cal-l4 { background: #2563eb; color: #fff; font-weight: 600; }
+.cal-future { opacity: 0.35; }
+.cal-today { outline: 2px solid var(--accent); outline-offset: 1px; font-weight: 700; }
+.cal-legend {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 14px;
+    font-size: 0.8rem;
+    color: var(--muted);
+}
+.cal-legend-scale { display: inline-flex; gap: 4px; }
+.cal-legend-scale .cal-day { width: 18px; height: 18px; aspect-ratio: auto; }
+
+.record-ico { display: inline-flex; vertical-align: middle; }
+.record-ico svg { width: 15px; height: 15px; }
 
 /* ---------- Ranking ---------- */
 .rank-list { display: flex; flex-direction: column; gap: 12px; }

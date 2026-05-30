@@ -162,35 +162,35 @@
     <div class="section-head"><h2>Recordes pessoais</h2></div>
     <div class="records-grid">
         <div class="record-card">
-            <div class="record-label">🏅 Maior distância</div>
+            <div class="record-label"><span class="record-ico" style="color:#60a5fa">{{ bicon('route') }}</span> Maior distância</div>
             {% if records.longest_dist and records.longest_dist.distance_km %}
             <div class="record-value">{{ "%.2f"|format(records.longest_dist.distance_km) }} km</div>
             <div class="record-sub">{{ sport_label(records.longest_dist.sport) }} · {{ records.longest_dist.date.strftime('%d/%m/%y') }}</div>
             {% else %}<div class="record-value">—</div>{% endif %}
         </div>
         <div class="record-card">
-            <div class="record-label">⏱️ Treino mais longo</div>
+            <div class="record-label"><span class="record-ico" style="color:#c084fc">{{ bicon('clock') }}</span> Treino mais longo</div>
             {% if records.longest_dur and records.longest_dur.duration_min %}
             <div class="record-value">{{ "%.0f"|format(records.longest_dur.duration_min) }} min</div>
             <div class="record-sub">{{ sport_label(records.longest_dur.sport) }} · {{ records.longest_dur.date.strftime('%d/%m/%y') }}</div>
             {% else %}<div class="record-value">—</div>{% endif %}
         </div>
         <div class="record-card">
-            <div class="record-label">⚡ Melhor pace corrida</div>
+            <div class="record-label"><span class="record-ico" style="color:#fb923c">{{ bicon('zap') }}</span> Melhor pace corrida</div>
             {% if records.best_pace.corrida %}
             <div class="record-value">{{ records.best_pace.corrida.pace }}</div>
             <div class="record-sub">{{ records.best_pace.corrida.date.strftime('%d/%m/%y') }}</div>
             {% else %}<div class="record-value">—</div>{% endif %}
         </div>
         <div class="record-card">
-            <div class="record-label">🏊 Melhor pace natação</div>
+            <div class="record-label"><span class="record-ico" style="color:#22d3ee">{{ bicon('waves') }}</span> Melhor pace natação</div>
             {% if records.best_pace.natacao %}
             <div class="record-value">{{ records.best_pace.natacao.pace }}</div>
             <div class="record-sub">{{ records.best_pace.natacao.date.strftime('%d/%m/%y') }}</div>
             {% else %}<div class="record-value">—</div>{% endif %}
         </div>
         <div class="record-card">
-            <div class="record-label">🔥 Maior sequência</div>
+            <div class="record-label"><span class="record-ico" style="color:#f87171">{{ bicon('flame') }}</span> Maior sequência</div>
             <div class="record-value">{{ records.max_streak }} <span class="record-unit">{{ "dia" if records.max_streak == 1 else "dias" }}</span></div>
             <div class="record-sub">dias consecutivos</div>
         </div>
@@ -216,47 +216,43 @@
     </div>
 </section>
 
-{# --- Mapa de calor --- #}
+{# --- Calendário de atividade --- #}
 <section class="panel-section">
     <div class="section-head">
-        <h2>Mapa de atividade</h2>
-        <span class="section-sub">{{ heatmap.active_days }} dias ativos · {{ heatmap.total }} treinos (últimos ~6 meses)</span>
+        <h2>Calendário de treinos</h2>
+        <span class="section-sub">{{ calendars.active_days }} dias ativos nos últimos {{ calendars.n_months }} meses</span>
     </div>
-    <p class="hint" style="margin: 0 0 12px;">Cada quadradinho é um dia. Da esquerda para a direita, semana a semana; de cima para baixo, segunda a domingo. Quanto mais azul, mais treinos naquele dia.</p>
-    <div class="heatmap-wrap">
-        <div class="heatmap-scroll">
-            <div class="hm-months">
-                <span class="hm-day-spacer"></span>
-                {% for m in heatmap.months %}<span class="hm-month">{{ m }}</span>{% endfor %}
+    <div class="cal-grid">
+        {% for month in calendars.months %}
+        <div class="cal-month">
+            <div class="cal-title">{{ month.name }}</div>
+            <div class="cal-weekdays">
+                {% for wd in calendars.weekdays %}<span>{{ wd }}</span>{% endfor %}
             </div>
-            <div class="heatmap-body">
-                <div class="hm-daylabels">
-                    <span>Seg</span><span></span><span>Qua</span><span></span><span>Sex</span><span></span><span></span>
-                </div>
-                <div class="heatmap">
-                    {% for week in heatmap.grid %}
-                    <div class="hm-week">
-                        {% for cell in week %}
-                        {% if cell %}
-                        <span class="hm-cell hm-l{{ cell.level }}" title="{{ cell.date.strftime('%d/%m/%Y') }} · {{ cell.count }} treino{{ 's' if cell.count != 1 else '' }}"></span>
-                        {% else %}
-                        <span class="hm-cell hm-empty"></span>
-                        {% endif %}
-                        {% endfor %}
-                    </div>
-                    {% endfor %}
-                </div>
+            <div class="cal-days">
+                {% for week in month.weeks %}
+                {% for cell in week %}
+                {% if cell %}
+                <span class="cal-day cal-l{{ cell.level }} {% if cell.is_today %}cal-today{% endif %} {% if cell.is_future %}cal-future{% endif %}"
+                      title="{% if cell.count %}{{ cell.count }} treino{{ 's' if cell.count != 1 else '' }}{% else %}sem treino{% endif %}">{{ cell.day }}</span>
+                {% else %}
+                <span class="cal-day cal-blank"></span>
+                {% endif %}
+                {% endfor %}
+                {% endfor %}
             </div>
         </div>
-        <div class="hm-legend">
-            <span>menos</span>
-            <span class="hm-cell hm-l0"></span>
-            <span class="hm-cell hm-l1"></span>
-            <span class="hm-cell hm-l2"></span>
-            <span class="hm-cell hm-l3"></span>
-            <span class="hm-cell hm-l4"></span>
-            <span>mais</span>
-        </div>
+        {% endfor %}
+    </div>
+    <div class="cal-legend">
+        <span>Dias coloridos = você treinou. Mais escuro = mais treinos no dia.</span>
+        <span class="cal-legend-scale">
+            <span class="cal-day cal-l0"></span>
+            <span class="cal-day cal-l1"></span>
+            <span class="cal-day cal-l2"></span>
+            <span class="cal-day cal-l3"></span>
+            <span class="cal-day cal-l4"></span>
+        </span>
     </div>
 </section>
 
