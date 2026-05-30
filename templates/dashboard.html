@@ -100,6 +100,29 @@
         </div>
     </div>
     {% endfor %}
+    {% if pace_run or pace_swim %}
+    <div class="compare-box">
+        <div class="compare-head">Evolução do ritmo <span class="compare-sub">mês vs anterior</span></div>
+        <div class="compare-rows">
+            {% if pace_run %}
+            <div class="compare-row">
+                <span class="compare-metric">🏃 {{ pace_run.cur }}</span>
+                {% if pace_run.faster %}<span class="delta delta-up">▲ {{ pace_run.pct|abs }}% + rápido</span>
+                {% elif pace_run.pct > 0 %}<span class="delta delta-down">▼ {{ pace_run.pct }}% + lento</span>
+                {% else %}<span class="delta delta-flat">igual</span>{% endif %}
+            </div>
+            {% endif %}
+            {% if pace_swim %}
+            <div class="compare-row">
+                <span class="compare-metric">🏊 {{ pace_swim.cur }}</span>
+                {% if pace_swim.faster %}<span class="delta delta-up">▲ {{ pace_swim.pct|abs }}% + rápido</span>
+                {% elif pace_swim.pct > 0 %}<span class="delta delta-down">▼ {{ pace_swim.pct }}% + lento</span>
+                {% else %}<span class="delta delta-flat">igual</span>{% endif %}
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
 </section>
 
 {# --- Metas --- #}
@@ -117,7 +140,14 @@
                 <span class="goal-pct {% if p.done %}is-done{% endif %}">{% if p.done %}✓{% else %}{{ p.pct }}%{% endif %}</span>
             </div>
             <div class="goal-bar"><div class="goal-fill" style="width: {{ p.pct }}%"></div></div>
-            <div class="goal-mini-foot">{{ "%.0f"|format(p.value) if p.goal.metric == 'count' else "%.1f"|format(p.value) }} / {{ "%.0f"|format(p.target) }} {{ p.unit }}</div>
+            <div class="goal-mini-foot">
+                <span>{{ "%.0f"|format(p.value) if p.goal.metric == 'count' else "%.1f"|format(p.value) }} / {{ "%.0f"|format(p.target) }} {{ p.unit }}</span>
+                {% if not p.done %}
+                <span class="goal-proj {% if p.on_track %}proj-ok{% else %}proj-behind{% endif %}" title="Projeção pelo ritmo atual">
+                    {% if p.on_track %}✓ no ritmo{% else %}↘ projeção {{ "%.0f"|format(p.projected) }}{% endif %}
+                </span>
+                {% endif %}
+            </div>
         </div>
         {% endfor %}
     </div>
@@ -162,6 +192,57 @@
             <div class="record-label">🔥 Maior sequência</div>
             <div class="record-value">{{ records.max_streak }} <span class="record-unit">{{ "dia" if records.max_streak == 1 else "dias" }}</span></div>
             <div class="record-sub">dias consecutivos</div>
+        </div>
+    </div>
+</section>
+
+{# --- Conquistas (resumo) --- #}
+<section class="panel-section">
+    <div class="section-head">
+        <h2>Conquistas <span class="badge-count">{{ badges.count }}/{{ badges.total }}</span></h2>
+        <a class="section-link" href="/conquistas">ver todas →</a>
+    </div>
+    <div class="badge-strip">
+        {% for item in badges.unlocked[:8] %}
+        <span class="badge-chip" title="{{ item.badge.title }} — {{ item.badge.desc }}">{{ item.badge.icon }}</span>
+        {% endfor %}
+        {% for item in badges.locked[:3] %}
+        <span class="badge-chip badge-chip-locked" title="{{ item.badge.title }} — {{ item.badge.desc }} ({{ item.pct }}%)">{{ item.badge.icon }}</span>
+        {% endfor %}
+        {% if not badges.unlocked %}
+        <span class="empty">Nenhuma conquista ainda — bora treinar! 💪</span>
+        {% endif %}
+    </div>
+</section>
+
+{# --- Mapa de calor --- #}
+<section class="panel-section">
+    <div class="section-head">
+        <h2>Mapa de atividade</h2>
+        <span class="section-sub">{{ heatmap.active_days }} dias ativos · {{ heatmap.total }} treinos</span>
+    </div>
+    <div class="heatmap-wrap">
+        <div class="heatmap">
+            {% for week in heatmap.grid %}
+            <div class="hm-week">
+                {% for cell in week %}
+                {% if cell %}
+                <span class="hm-cell hm-l{{ cell.level }}" title="{{ cell.date.strftime('%d/%m/%Y') }} · {{ cell.count }} treino{{ 's' if cell.count != 1 else '' }}"></span>
+                {% else %}
+                <span class="hm-cell hm-empty"></span>
+                {% endif %}
+                {% endfor %}
+            </div>
+            {% endfor %}
+        </div>
+        <div class="hm-legend">
+            <span>menos</span>
+            <span class="hm-cell hm-l0"></span>
+            <span class="hm-cell hm-l1"></span>
+            <span class="hm-cell hm-l2"></span>
+            <span class="hm-cell hm-l3"></span>
+            <span class="hm-cell hm-l4"></span>
+            <span>mais</span>
         </div>
     </div>
 </section>
@@ -401,5 +482,24 @@
             }
         }
     });
+
+    // Celebração: confete quando há meta(s) concluída(s), uma vez por dia
+    const doneGoals = {{ goals_progress|selectattr('done')|list|length }};
+    if (doneGoals > 0) {
+        const todayKey = 'celebrated-{{ athlete.id }}-{{ today }}';
+        if (!localStorage.getItem(todayKey)) {
+            localStorage.setItem(todayKey, '1');
+            const s = document.createElement('script');
+            s.src = 'https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.3/dist/confetti.browser.min.js';
+            s.onload = () => {
+                const burst = (x) => confetti({
+                    particleCount: 80, spread: 70, origin: {x, y: 0.3},
+                    colors: ['#3b82f6', '#10b981', '#f97316', '#a855f7'],
+                });
+                burst(0.3); setTimeout(() => burst(0.7), 250);
+            };
+            document.body.appendChild(s);
+        }
+    }
 </script>
 {% endblock %}

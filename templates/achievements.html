@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Conquistas - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Conquistas</h1>
+        <p class="page-sub"><strong>{{ athlete.name }}</strong> desbloqueou <strong>{{ badges.count }}</strong> de {{ badges.total }}</p>
+    </div>
+</header>
+
+<div class="badge-progress-bar">
+    <div class="badge-progress-fill" style="width: {{ (badges.count / badges.total * 100)|round }}%"></div>
+</div>
+
+{% if badges.unlocked %}
+<section class="panel-section">
+    <div class="section-head"><h2>Desbloqueadas 🎉</h2></div>
+    <div class="badge-grid">
+        {% for item in badges.unlocked %}
+        <article class="badge-card badge-unlocked" title="{{ item.badge.desc }}">
+            <div class="badge-icon">{{ item.badge.icon }}</div>
+            <div class="badge-title">{{ item.badge.title }}</div>
+            <div class="badge-desc">{{ item.badge.desc }}</div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if badges.locked %}
+<section class="panel-section">
+    <div class="section-head"><h2>A conquistar</h2></div>
+    <div class="badge-grid">
+        {% for item in badges.locked %}
+        <article class="badge-card badge-locked" title="{{ item.badge.desc }}">
+            <div class="badge-icon">{{ item.badge.icon }}</div>
+            <div class="badge-title">{{ item.badge.title }}</div>
+            <div class="badge-desc">{{ item.badge.desc }}</div>
+            <div class="badge-bar"><div class="badge-fill" style="width: {{ item.pct }}%"></div></div>
+            <div class="badge-pct">{{ item.pct }}%</div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+{% endblock %}

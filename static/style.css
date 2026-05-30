@@ -451,6 +451,163 @@ body {
 .record-unit { font-size: 0.9rem; color: var(--muted); font-weight: 500; }
 .record-sub { font-size: 0.78rem; color: var(--muted-2); margin-top: 4px; }
 
+.section-sub { color: var(--muted); font-size: 0.82rem; }
+
+/* Projeção de meta */
+.goal-proj { font-size: 0.78rem; font-weight: 600; }
+.proj-ok { color: #34d399; }
+.proj-behind { color: #fb923c; }
+
+/* ---------- Conquistas ---------- */
+.badge-count {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--muted);
+    background: var(--panel-2);
+    padding: 2px 9px;
+    border-radius: 100px;
+    margin-left: 6px;
+}
+.badge-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+}
+.badge-chip {
+    width: 42px;
+    height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.3rem;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+}
+.badge-chip-locked { filter: grayscale(1); opacity: 0.4; }
+
+.badge-progress-bar {
+    height: 10px;
+    background: var(--panel-2);
+    border-radius: 100px;
+    overflow: hidden;
+    margin-bottom: 24px;
+}
+.badge-progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #f59e0b, #fbbf24);
+    border-radius: 100px;
+    transition: width .5s ease;
+}
+.badge-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 14px;
+}
+.badge-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 16px;
+    text-align: center;
+    box-shadow: var(--shadow);
+}
+.badge-unlocked { border-color: rgba(251,191,36,0.35); }
+.badge-locked { opacity: 0.7; }
+.badge-locked .badge-icon { filter: grayscale(1); opacity: 0.5; }
+.badge-icon { font-size: 2.2rem; line-height: 1; margin-bottom: 10px; }
+.badge-title { font-weight: 600; font-size: 0.95rem; color: var(--text); }
+.badge-desc { font-size: 0.78rem; color: var(--muted); margin-top: 4px; }
+.badge-bar {
+    height: 6px;
+    background: var(--panel-2);
+    border-radius: 100px;
+    overflow: hidden;
+    margin: 10px 0 4px;
+}
+.badge-fill { height: 100%; background: var(--accent); border-radius: 100px; }
+.badge-pct { font-size: 0.72rem; color: var(--muted); }
+
+/* ---------- Mapa de calor ---------- */
+.heatmap-wrap {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px;
+    box-shadow: var(--shadow);
+    overflow-x: auto;
+}
+.heatmap {
+    display: flex;
+    gap: 4px;
+    min-width: min-content;
+}
+.hm-week { display: flex; flex-direction: column; gap: 4px; }
+.hm-cell {
+    width: 13px;
+    height: 13px;
+    border-radius: 3px;
+    display: block;
+}
+.hm-empty { background: transparent; }
+.hm-l0 { background: var(--panel-2); }
+.hm-l1 { background: rgba(59,130,246,0.35); }
+.hm-l2 { background: rgba(59,130,246,0.6); }
+.hm-l3 { background: rgba(59,130,246,0.8); }
+.hm-l4 { background: #3b82f6; }
+.hm-legend {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 12px;
+    font-size: 0.75rem;
+    color: var(--muted);
+}
+
+/* ---------- Ranking ---------- */
+.rank-list { display: flex; flex-direction: column; gap: 12px; }
+.rank-card {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+}
+.rank-leader { border-color: rgba(251,191,36,0.45); background: linear-gradient(135deg, rgba(251,191,36,0.06), transparent); }
+.rank-me { box-shadow: inset 0 0 0 1px rgba(59,130,246,0.3), var(--shadow); }
+.rank-pos {
+    font-size: 1.6rem;
+    font-weight: 700;
+    min-width: 40px;
+    text-align: center;
+    color: var(--muted);
+}
+.rank-body { flex: 1; min-width: 0; }
+.rank-name { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.rank-you {
+    font-size: 0.7rem;
+    background: rgba(59,130,246,0.15);
+    color: #60a5fa;
+    padding: 1px 7px;
+    border-radius: 100px;
+    font-weight: 600;
+    text-transform: uppercase;
+    vertical-align: middle;
+}
+.rank-stats {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    color: var(--muted);
+    font-size: 0.9rem;
+}
+.rank-stats strong { color: var(--text-2); }
+
 /* ---------- Charts ---------- */
 .charts-grid {
     display: grid;

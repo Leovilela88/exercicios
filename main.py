@@ -21,6 +21,7 @@ from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label
 from models import Athlete, Goal, Settings, Workout
 from strava_import import parse_strava_csv
+import achievements
 import stats
 
 SPORTS = ("corrida", "natacao", "musculacao", "trilha", "outro")
@@ -388,7 +389,7 @@ def dashboard(
         aq(db.query(Workout)).order_by(Workout.date.desc(), Workout.id.desc()).limit(10).all()
     )
 
-    # Engajamento: comparativo, recordes e progresso de metas
+    # Engajamento: comparativo, recordes, metas, heatmap, badges, tendência de pace
     comparison = stats.period_comparison(db, athlete.id, today)
     records = stats.personal_records(db, athlete.id)
     goals = (
@@ -396,6 +397,10 @@ def dashboard(
         .order_by(Goal.id).all()
     )
     goals_progress = [stats.goal_progress(db, athlete.id, g, today) for g in goals]
+    heatmap = stats.activity_heatmap(db, athlete.id, today)
+    badges = achievements.evaluate(db, athlete.id)
+    pace_run = stats.pace_trend(db, athlete.id, today, "corrida")
+    pace_swim = stats.pace_trend(db, athlete.id, today, "natacao")
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -408,6 +413,10 @@ def dashboard(
             "comparison": comparison,
             "records": records,
             "goals_progress": goals_progress,
+            "heatmap": heatmap,
+            "badges": badges,
+            "pace_run": pace_run,
+            "pace_swim": pace_swim,
             "labels": labels,
             "cal_series": cal_series,
             "active_series": active_series,
@@ -651,6 +660,41 @@ def goals_delete(request: Request, goal_id: int, db: Session = Depends(get_db)):
         db.delete(g)
         db.commit()
     return RedirectResponse(url="/metas", status_code=303)
+
+
+# ------------- ranking & conquistas -------------
+
+@app.get("/ranking", response_class=HTMLResponse)
+def ranking_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    athletes = get_all_athletes(db)
+    today = date.today()
+    rows = stats.ranking(db, athletes, today)
+    return templates.TemplateResponse(
+        "ranking.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": athletes,
+            "rows": rows,
+            "month_label": today.strftime("%B de %Y"),
+        },
+    )
+
+
+@app.get("/conquistas", response_class=HTMLResponse)
+def achievements_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    badges = achievements.evaluate(db, athlete.id)
+    return templates.TemplateResponse(
+        "achievements.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "badges": badges,
+        },
+    )
 
 
 # ------------- atletas -------------

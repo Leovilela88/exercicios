@@ -1,4 +1,5 @@
 """Estatísticas de engajamento: metas, recordes e comparativos de período."""
+import calendar
 from datetime import date, timedelta
 from typing import Optional
 
@@ -108,12 +109,25 @@ def goal_progress(db: Session, athlete_id: int, goal, today: date) -> dict:
     pct = min(100, round(value / target * 100)) if target > 0 else 0
     metric_label, unit = GOAL_METRICS.get(goal.metric, ("?", ""))
     scope = sport_label(goal.sport) if goal.sport else "Todos os esportes"
+    done = value >= target > 0
+
+    # Projeção: extrapola o ritmo atual até o fim do período
+    if goal.period == "week":
+        elapsed, total_days = today.weekday() + 1, 7
+    else:
+        elapsed = today.day
+        total_days = calendar.monthrange(today.year, today.month)[1]
+    projected = (value / elapsed * total_days) if elapsed > 0 else value
+    on_track = projected >= target > 0
+
     return {
         "goal": goal,
         "value": value,
         "target": target,
         "pct": pct,
-        "done": value >= target > 0,
+        "done": done,
+        "projected": round(projected, 1),
+        "on_track": on_track,
         "unit": unit,
         "metric_label": metric_label,
         "scope": scope,
@@ -171,6 +185,139 @@ def _as_date(v) -> date:
     if isinstance(v, str):
         return date.fromisoformat(v[:10])
     return v
+
+
+def current_streak(db: Session, athlete_id: int, today: date) -> int:
+    dates = {
+        _as_date(d) for (d,) in db.query(Workout.date)
+        .filter(Workout.athlete_id == athlete_id).distinct().all()
+    }
+    if not dates:
+        return 0
+    d = today
+    if d not in dates and (d - timedelta(days=1)) in dates:
+        d -= timedelta(days=1)
+    streak = 0
+    while d in dates:
+        streak += 1
+        d -= timedelta(days=1)
+    return streak
+
+
+# ------------- mapa de calor -------------
+
+def activity_heatmap(db: Session, athlete_id: int, today: date, weeks: int = 27) -> dict:
+    """Grade tipo GitHub: colunas = semanas, linhas = dias (seg→dom).
+    Nível 0–4 por nº de treinos no dia."""
+    # começa na segunda-feira, `weeks` semanas atrás
+    start = today - timedelta(days=today.weekday()) - timedelta(weeks=weeks - 1)
+    rows = (
+        db.query(Workout.date, func.count(Workout.id))
+        .filter(Workout.athlete_id == athlete_id,
+                Workout.date >= start, Workout.date <= today)
+        .group_by(Workout.date).all()
+    )
+    counts = {_as_date(d): int(c) for d, c in rows}
+
+    def level(n: int) -> int:
+        if n <= 0:
+            return 0
+        if n == 1:
+            return 1
+        if n == 2:
+            return 2
+        if n == 3:
+            return 3
+        return 4
+
+    grid = []  # lista de semanas; cada semana = lista de 7 células
+    cur = start
+    months = []  # rótulos de mês por coluna
+    last_month = None
+    while cur <= today:
+        week_cells = []
+        col_month = None
+        for i in range(7):
+            d = cur + timedelta(days=i)
+            if d > today:
+                week_cells.append(None)
+                continue
+            n = counts.get(d, 0)
+            week_cells.append({"date": d, "count": n, "level": level(n)})
+            if col_month is None:
+                col_month = d.month
+        # rótulo do mês: mostra quando muda
+        if col_month and col_month != last_month:
+            months.append(date(today.year, col_month, 1).strftime("%b"))
+            last_month = col_month
+        else:
+            months.append("")
+        grid.append(week_cells)
+        cur += timedelta(weeks=1)
+
+    total = sum(counts.values())
+    active_days = sum(1 for n in counts.values() if n > 0)
+    return {"grid": grid, "months": months, "total": total,
+            "active_days": active_days, "weeks": len(grid)}
+
+
+# ------------- ranking entre atletas -------------
+
+def ranking(db: Session, athletes: list, today: date) -> list[dict]:
+    """Placar do mês corrente (até hoje) por atleta."""
+    start, end = month_bounds(today)
+    out = []
+    for a in athletes:
+        agg = _aggregate(db, a.id, start, end)
+        out.append({
+            "athlete": a,
+            "km": agg["km"],
+            "count": agg["count"],
+            "cal": agg["cal"],
+            "min": agg["min"],
+            "streak": current_streak(db, a.id, today),
+        })
+    out.sort(key=lambda x: (-x["km"], -x["count"]))
+    for i, row in enumerate(out):
+        row["pos"] = i + 1
+    return out
+
+
+# ------------- tendência de pace -------------
+
+def _avg_pace_secs(db: Session, athlete_id: int, sport: str,
+                   start: date, end: date) -> Optional[float]:
+    """Segundos por km (corrida/trilha) ou por 100m (natação) no intervalo."""
+    row = db.query(
+        func.coalesce(func.sum(Workout.distance_km), 0.0),
+        func.coalesce(func.sum(Workout.duration_min), 0.0),
+    ).filter(
+        Workout.athlete_id == athlete_id, Workout.sport == sport,
+        Workout.date >= start, Workout.date <= end,
+        Workout.distance_km.isnot(None), Workout.duration_min.isnot(None),
+        Workout.distance_km > 0,
+    ).one()
+    km, minutes = float(row[0] or 0), float(row[1] or 0)
+    if km <= 0 or minutes <= 0:
+        return None
+    unit = km if sport in ("corrida", "trilha") else km * 10.0
+    return minutes * 60.0 / unit
+
+
+def pace_trend(db: Session, athlete_id: int, today: date, sport: str = "corrida") -> Optional[dict]:
+    """Compara pace médio do mês atual vs mês anterior. pct<0 = mais rápido."""
+    cur = _avg_pace_secs(db, athlete_id, sport, *month_bounds(today))
+    prev = _avg_pace_secs(db, athlete_id, sport, *prev_month_bounds(today))
+    if cur is None or prev is None:
+        return None
+    pct = round((cur - prev) / prev * 100)
+
+    def fmt(secs):
+        m, s = divmod(int(round(secs)), 60)
+        suffix = "/km" if sport in ("corrida", "trilha") else "/100m"
+        return f"{m}:{s:02d}{suffix}"
+
+    return {"cur": fmt(cur), "prev": fmt(prev), "pct": pct, "faster": cur < prev}
 
 
 def _max_streak(db: Session, athlete_id: int) -> int:
