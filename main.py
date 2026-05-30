@@ -19,7 +19,7 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label
-from models import Athlete, Goal, Settings, Workout
+from models import Athlete, Goal, Settings, WeightLog, Workout
 from strava_import import parse_strava_csv
 import achievements
 import stats
@@ -401,6 +401,8 @@ def dashboard(
     badges = achievements.evaluate(db, athlete.id)
     pace_run = stats.pace_trend(db, athlete.id, today, "corrida")
     pace_swim = stats.pace_trend(db, athlete.id, today, "natacao")
+    insights = stats.insights(db, athlete.id, today)
+    predictions = stats.race_predictions(db, athlete.id, today)
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -417,6 +419,8 @@ def dashboard(
             "badges": badges,
             "pace_run": pace_run,
             "pace_swim": pace_swim,
+            "insights": insights,
+            "predictions": predictions,
             "labels": labels,
             "cal_series": cal_series,
             "active_series": active_series,
@@ -695,6 +699,78 @@ def achievements_page(request: Request, db: Session = Depends(get_db)):
             "badges": badges,
         },
     )
+
+
+# ------------- peso -------------
+
+@app.get("/peso", response_class=HTMLResponse)
+def weight_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    logs = (
+        db.query(WeightLog).filter(WeightLog.athlete_id == athlete.id)
+        .order_by(WeightLog.date.asc(), WeightLog.id.asc()).all()
+    )
+    series = [{"date": l.date.isoformat(), "label": l.date.strftime("%d/%m/%y"),
+               "weight": l.weight_kg, "id": l.id} for l in logs]
+    first = logs[0].weight_kg if logs else None
+    last = logs[-1].weight_kg if logs else None
+    delta = round(last - first, 1) if (first is not None and last is not None) else None
+    return templates.TemplateResponse(
+        "weight.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "logs": list(reversed(logs)),
+            "series": series,
+            "delta": delta,
+            "today": date.today().isoformat(),
+        },
+    )
+
+
+@app.post("/peso")
+def weight_create(
+    request: Request,
+    weight_kg: str = Form(...),
+    log_date: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    w = _to_float(weight_kg)
+    try:
+        d = date.fromisoformat(log_date)
+    except ValueError:
+        d = date.today()
+    if w and w > 0:
+        # um registro por dia: atualiza se já existe
+        existing = db.query(WeightLog).filter(
+            WeightLog.athlete_id == athlete.id, WeightLog.date == d
+        ).first()
+        if existing:
+            existing.weight_kg = w
+        else:
+            db.add(WeightLog(athlete_id=athlete.id, date=d, weight_kg=w))
+        # mantém o peso "atual" do atleta = registro mais recente
+        latest = db.query(func.max(WeightLog.date)).filter(
+            WeightLog.athlete_id == athlete.id
+        ).scalar()
+        if latest is None or d >= latest:
+            athlete.weight_kg = w
+        db.commit()
+    return RedirectResponse(url="/peso", status_code=303)
+
+
+@app.post("/peso/{log_id}/delete")
+def weight_delete(request: Request, log_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    l = db.query(WeightLog).filter(
+        WeightLog.id == log_id, WeightLog.athlete_id == athlete.id
+    ).first()
+    if l:
+        db.delete(l)
+        db.commit()
+    return RedirectResponse(url="/peso", status_code=303)
 
 
 # ------------- atletas -------------

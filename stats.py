@@ -329,6 +329,99 @@ def pace_trend(db: Session, athlete_id: int, today: date, sport: str = "corrida"
     return {"cur": fmt(cur), "prev": fmt(prev), "pct": pct, "faster": cur < prev}
 
 
+def _fmt_time(minutes: float) -> str:
+    """Minutos decimais -> H:MM:SS ou MM:SS."""
+    total = int(round(minutes * 60))
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    if h:
+        return f"{h}:{m:02d}:{s:02d}"
+    return f"{m}:{s:02d}"
+
+
+def race_predictions(db: Session, athlete_id: int, today: date) -> Optional[dict]:
+    """Previsão de tempos de prova (Riegel) a partir da melhor corrida recente.
+    T2 = T1 * (D2/D1) ** 1.06"""
+    cutoff = today - timedelta(days=120)
+    rows = (
+        db.query(Workout)
+        .filter(Workout.athlete_id == athlete_id, Workout.sport == "corrida",
+                Workout.date >= cutoff,
+                Workout.distance_km >= 3, Workout.duration_min.isnot(None),
+                Workout.duration_min > 0)
+        .all()
+    )
+    if not rows:
+        return None
+    # melhor desempenho = menor pace (seg/km)
+    best = min(rows, key=lambda w: w.duration_min * 60 / w.distance_km)
+    d1, t1 = best.distance_km, best.duration_min  # km, minutos
+
+    preds = []
+    for label, dist in [("5K", 5.0), ("10K", 10.0),
+                        ("Meia (21K)", 21.0975), ("Maratona (42K)", 42.195)]:
+        t2 = t1 * (dist / d1) ** 1.06
+        secs_per_km = t2 * 60 / dist
+        m, s = divmod(int(round(secs_per_km)), 60)
+        preds.append({
+            "label": label,
+            "time": _fmt_time(t2),
+            "pace": f"{m}:{s:02d}/km",
+            "is_base": abs(dist - d1) < 0.4,
+        })
+    return {
+        "base_km": round(d1, 2),
+        "base_time": _fmt_time(t1),
+        "base_date": best.date,
+        "preds": preds,
+    }
+
+
+_WD_PT = ["segundas", "terças", "quartas", "quintas", "sextas", "sábados", "domingos"]
+
+
+def insights(db: Session, athlete_id: int, today: date) -> list[dict]:
+    """Frases automáticas geradas dos dados — um 'coach' simples."""
+    out = []
+
+    # 1) sequência atual
+    cs = current_streak(db, athlete_id, today)
+    if cs >= 3:
+        out.append({"icon": "flame", "color": "#fb923c",
+                    "text": f"Você está há {cs} dias seguidos treinando. Mantenha o ritmo!"})
+
+    # 2) dia da semana mais frequente
+    wd_rows = db.query(Workout.date).filter(Workout.athlete_id == athlete_id).all()
+    if len(wd_rows) >= 8:
+        counts = [0] * 7
+        for (d,) in wd_rows:
+            counts[_as_date(d).weekday()] += 1
+        top = max(range(7), key=lambda i: counts[i])
+        if counts[top] > 0:
+            out.append({"icon": "calendar", "color": "#60a5fa",
+                        "text": f"Seu dia mais ativo são as {_WD_PT[top]} ({counts[top]} treinos)."})
+
+    # 3) tendência de volume (últimos 30d vs 30 anteriores)
+    cur = _aggregate(db, athlete_id, today - timedelta(days=29), today)
+    prev = _aggregate(db, athlete_id, today - timedelta(days=59), today - timedelta(days=30))
+    pc = _pct(cur["km"], prev["km"])
+    if pc is not None and abs(pc) >= 10 and cur["km"] > 0:
+        if pc > 0:
+            out.append({"icon": "trending-up", "color": "#34d399",
+                        "text": f"Seu volume subiu {pc}% vs os 30 dias anteriores ({cur['km']:.0f} km)."})
+        else:
+            out.append({"icon": "trending-down", "color": "#f87171",
+                        "text": f"Seu volume caiu {abs(pc)}% vs os 30 dias anteriores. Bora retomar!"})
+
+    # 4) tendência de pace na corrida
+    pt = pace_trend(db, athlete_id, today, "corrida")
+    if pt and pt["faster"] and abs(pt["pct"]) >= 3:
+        out.append({"icon": "zap", "color": "#fbbf24",
+                    "text": f"Você está {abs(pt['pct'])}% mais rápido na corrida que no mês passado."})
+
+    return out[:4]
+
+
 def _max_streak(db: Session, athlete_id: int) -> int:
     dates = sorted(
         _as_date(d) for (d,) in db.query(Workout.date)

@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Peso - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Histórico de peso</h1>
+        <p class="page-sub">Evolução corporal de <strong>{{ athlete.name }}</strong>{% if delta is not none %} · <strong class="{{ 'delta-down' if delta < 0 else ('delta-up' if delta > 0 else '') }}" style="padding:2px 8px;border-radius:100px;">{{ '%+.1f'|format(delta) }} kg no total</strong>{% endif %}</p>
+    </div>
+</header>
+
+{% if series %}
+<section class="chart-box" style="margin-bottom: 24px;">
+    <div class="chart-header"><h2>Evolução</h2><span class="chart-sub">{{ series|length }} registro{{ 's' if series|length != 1 else '' }}</span></div>
+    <canvas id="chartWeight"></canvas>
+</section>
+{% endif %}
+
+<section class="form" style="max-width: 560px; margin-bottom: 24px;">
+    <h2 class="form-title">Registrar peso</h2>
+    <form method="post" action="/peso">
+        <div class="row">
+            <label>
+                <span>Data</span>
+                <input type="date" name="log_date" value="{{ today }}" required />
+            </label>
+            <label>
+                <span>Peso (kg)</span>
+                <input type="number" step="0.1" min="20" max="300" name="weight_kg" required placeholder="ex: 81.5" />
+            </label>
+        </div>
+        <p class="hint">Um registro por dia. O peso mais recente vira o peso atual do atleta (usado no cálculo de calorias).</p>
+        <div class="actions">
+            <button type="submit" class="btn-primary">Salvar peso</button>
+        </div>
+    </form>
+</section>
+
+{% if logs %}
+<section class="recent">
+    <div class="section-head"><h2>Registros</h2></div>
+    <div class="table-wrap">
+        <table class="tbl">
+            <thead><tr><th>Data</th><th>Peso</th><th></th></tr></thead>
+            <tbody>
+            {% for l in logs %}
+            <tr>
+                <td>{{ l.date.strftime('%d/%m/%Y') }}</td>
+                <td>{{ "%.1f"|format(l.weight_kg) }} kg</td>
+                <td class="row-actions">
+                    <form method="post" action="/peso/{{ l.id }}/delete" onsubmit="return confirm('Excluir registro?');">
+                        <button class="btn-icon" type="submit" title="Excluir">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% else %}
+<p class="empty">Nenhum registro de peso ainda. Adicione o primeiro acima para acompanhar sua evolução.</p>
+{% endif %}
+
+{% if series %}
+<script>
+    const wData = {{ series|tojson }};
+    Chart.defaults.font.family = "Inter, sans-serif";
+    Chart.defaults.color = '#94a3b8';
+    new Chart(document.getElementById('chartWeight'), {
+        type: 'line',
+        data: {
+            labels: wData.map(d => d.label),
+            datasets: [{
+                label: 'Peso (kg)',
+                data: wData.map(d => d.weight),
+                borderColor: '#3b82f6',
+                backgroundColor: 'rgba(59,130,246,0.15)',
+                fill: true, tension: 0.3, borderWidth: 2.5,
+                pointRadius: 3, pointHoverRadius: 6, pointBackgroundColor: '#3b82f6',
+            }]
+        },
+        options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {legend: {display: false}, tooltip: {
+                backgroundColor: '#0f172a', borderColor: 'rgba(148,163,184,0.2)', borderWidth: 1,
+                padding: 10, cornerRadius: 8,
+                callbacks: {label: c => c.parsed.y + ' kg'},
+            }},
+            scales: {
+                y: {ticks: {color: '#94a3b8', callback: v => v + ' kg'}, grid: {color: 'rgba(148,163,184,0.10)'}},
+                x: {ticks: {color: '#94a3b8', maxRotation: 0, autoSkip: true}, grid: {display: false}}
+            }
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}

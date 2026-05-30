@@ -13,6 +13,17 @@
     </div>
 </header>
 
+{% if insights %}
+<section class="insights">
+    {% for ins in insights %}
+    <div class="insight">
+        <span class="insight-ico" style="color: {{ ins.color }}; background: {{ ins.color }}1f;">{{ bicon(ins.icon) }}</span>
+        <span class="insight-text">{{ ins.text }}</span>
+    </div>
+    {% endfor %}
+</section>
+{% endif %}
+
 <div class="range-tabs" role="tablist" aria-label="Período dos gráficos">
     {% for key, label in range_options %}
     <a href="/?range={{ key }}" class="range-tab {% if range_key == key %}active{% endif %}" role="tab">{{ label }}</a>
@@ -196,6 +207,26 @@
         </div>
     </div>
 </section>
+
+{# --- Previsão de prova --- #}
+{% if predictions %}
+<section class="panel-section">
+    <div class="section-head">
+        <h2>Previsão de prova</h2>
+        <span class="section-sub">base: {{ predictions.base_km }} km em {{ predictions.base_time }} ({{ predictions.base_date.strftime('%d/%m') }})</span>
+    </div>
+    <div class="records-grid">
+        {% for p in predictions.preds %}
+        <div class="record-card {% if p.is_base %}pred-base{% endif %}">
+            <div class="record-label"><span class="record-ico" style="color:#60a5fa">{{ bicon('flag') }}</span> {{ p.label }}</div>
+            <div class="record-value">{{ p.time }}</div>
+            <div class="record-sub">{{ p.pace }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    <p class="hint" style="margin: 10px 0 0;">Estimativa pela fórmula de Riegel a partir da sua melhor corrida recente. Quanto mais perto a distância da prova for da sua corrida-base, mais precisa.</p>
+</section>
+{% endif %}
 
 {# --- Conquistas (resumo) --- #}
 <section class="panel-section">

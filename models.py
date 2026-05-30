@@ -31,6 +31,16 @@ class Workout(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class WeightLog(Base):
+    __tablename__ = "weight_logs"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    date = Column(Date, nullable=False, default=date_type.today, index=True)
+    weight_kg = Column(Float, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Goal(Base):
     __tablename__ = "goals"
 
