@@ -10,7 +10,13 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
 from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
-from PIL import Image, ImageOps
+
+try:
+    from PIL import Image, ImageOps
+    HAS_PIL = True
+except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem resize
+    Image = ImageOps = None
+    HAS_PIL = False
 
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
@@ -79,7 +85,10 @@ _init_db()
 
 def _ensure_pwa_icons() -> None:
     """Gera ícones PNG do app (192/512px) se não existirem.
-    iOS Safari precisa de PNG para apple-touch-icon."""
+    iOS Safari precisa de PNG para apple-touch-icon. No-op sem Pillow —
+    os PNGs já vão commitados no repo, então isso é só um fallback."""
+    if not HAS_PIL:
+        return
     import os
     from PIL import ImageDraw
 
@@ -563,29 +572,38 @@ async def athletes_photo_upload(
     raw = await file.read()
     if not raw or len(raw) > 8 * 1024 * 1024:  # 8 MB hard cap
         return RedirectResponse(url="/atletas", status_code=303)
-    try:
-        img = Image.open(io.BytesIO(raw))
-        img = ImageOps.exif_transpose(img)  # respeita orientação EXIF do celular
-        # Crop quadrado central e redimensiona pra 512x512
-        w, h = img.size
-        side = min(w, h)
-        left = (w - side) // 2
-        top = (h - side) // 2
-        img = img.crop((left, top, left + side, top + side))
-        img = img.resize((512, 512), Image.LANCZOS)
-        if img.mode in ("RGBA", "P", "LA"):
-            bg = Image.new("RGB", img.size, (10, 16, 32))
-            bg.paste(img, mask=img.convert("RGBA").split()[-1] if img.mode != "P" else None)
-            img = bg
-        elif img.mode != "RGB":
-            img = img.convert("RGB")
-        out = io.BytesIO()
-        img.save(out, format="JPEG", quality=85, optimize=True)
-        a.photo = out.getvalue()
-        a.photo_mime = "image/jpeg"
-        db.commit()
-    except Exception:
-        pass
+
+    if HAS_PIL:
+        # Caminho ideal: crop quadrado central + resize 512x512 JPEG (~20KB)
+        try:
+            img = Image.open(io.BytesIO(raw))
+            img = ImageOps.exif_transpose(img)  # respeita orientação EXIF do celular
+            w, h = img.size
+            side = min(w, h)
+            left = (w - side) // 2
+            top = (h - side) // 2
+            img = img.crop((left, top, left + side, top + side))
+            img = img.resize((512, 512), Image.LANCZOS)
+            if img.mode in ("RGBA", "P", "LA"):
+                bg = Image.new("RGB", img.size, (10, 16, 32))
+                bg.paste(img, mask=img.convert("RGBA").split()[-1] if img.mode != "P" else None)
+                img = bg
+            elif img.mode != "RGB":
+                img = img.convert("RGB")
+            out = io.BytesIO()
+            img.save(out, format="JPEG", quality=85, optimize=True)
+            a.photo = out.getvalue()
+            a.photo_mime = "image/jpeg"
+            db.commit()
+        except Exception:
+            pass
+    else:
+        # Fallback sem Pillow: salva o original (limitado a 2 MB para não estourar
+        # o banco) com o mime informado pelo navegador.
+        if len(raw) <= 2 * 1024 * 1024 and (file.content_type or "").startswith("image/"):
+            a.photo = raw
+            a.photo_mime = file.content_type
+            db.commit()
     return RedirectResponse(url="/atletas", status_code=303)
 
 
