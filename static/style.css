@@ -1230,6 +1230,28 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 }
 .ex-count:hover { background: rgba(239,68,68,0.25); }
 
+/* Botão flutuante de instalar PWA */
+.install-btn {
+    position: fixed;
+    right: 18px;
+    bottom: calc(18px + env(safe-area-inset-bottom));
+    z-index: 60;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 100px;
+    padding: 12px 18px;
+    font: inherit;
+    font-weight: 600;
+    font-size: 0.92rem;
+    cursor: pointer;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.45);
+}
+.install-btn:hover { background: var(--accent-hover); }
+
 /* Paginação */
 .pagination {
     display: flex;

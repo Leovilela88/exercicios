@@ -1172,6 +1172,25 @@ def config_redirect():
 
 # ------------- API -------------
 
+@app.get("/sw.js")
+def service_worker():
+    """Serve o service worker da raiz para ter escopo '/' (controla o app todo)."""
+    import os
+    path = os.path.join(os.path.dirname(__file__), "static", "sw.js")
+    with open(path, "r", encoding="utf-8") as f:
+        content = f.read()
+    return Response(
+        content=content,
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/", "Cache-Control": "no-cache"},
+    )
+
+
+@app.get("/offline", response_class=HTMLResponse)
+def offline(request: Request):
+    return templates.TemplateResponse("offline.html", {"request": request})
+
+
 @app.get("/api/db-info")
 def api_db_info(db: Session = Depends(get_db)):
     """Diagnóstico: mostra qual banco está em uso e contagem de registros.
