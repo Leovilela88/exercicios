@@ -19,15 +19,6 @@
     {% endif %}
 </header>
 
-{% if seeded is not none and seed_kind in seed_types %}
-{% set cfg = seed_types[seed_kind] %}
-<div class="alert alert-success">
-    <strong>{{ seeded }} treino{{ 's' if seeded != 1 else '' }} de {{ cfg.nome }} adicionado{{ 's' if seeded != 1 else '' }}</strong>
-    para <strong>{{ athlete.name }}</strong> ({{ cfg.descricao }}).
-    {% if seeded == 0 %} Nenhum novo — provavelmente já estavam cadastrados.{% endif %}
-</div>
-{% endif %}
-
 <section class="athlete-grid">
     {% for a in athletes %}
     <article class="athlete-card {% if athlete and a.id == athlete.id %}is-active{% endif %}">
@@ -109,24 +100,6 @@
         </form>
     </article>
     {% endfor %}
-</section>
-
-<section class="help-box" style="margin-top: 24px;">
-    <h2>Agendas fixas</h2>
-    <p class="hint" style="margin-bottom: 14px;">
-        Cria treinos recorrentes para <strong>{{ athlete.name }}</strong>. Seguro rodar várias vezes — duplicatas são ignoradas automaticamente.
-    </p>
-    <div class="seed-grid">
-        {% for kind, cfg in seed_types.items() %}
-        <form method="post" action="/admin/seed/{{ kind }}"
-              onsubmit="return confirm('Adicionar {{ cfg.nome }} ({{ cfg.descricao }}) para {{ athlete.name }}?');">
-            <button type="submit" class="btn-ghost btn-seed">
-                <span class="btn-seed-title">{{ cfg.icone }} {{ cfg.nome|capitalize }}</span>
-                <span class="btn-seed-sub">{{ cfg.descricao }}</span>
-            </button>
-        </form>
-        {% endfor %}
-    </div>
 </section>
 
 <section class="form" style="margin-top: 24px;">

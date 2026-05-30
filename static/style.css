@@ -477,23 +477,6 @@ body {
     font-size: 0.82rem;
 }
 
-.seed-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: 12px;
-}
-.seed-grid form { margin: 0; }
-.btn-seed {
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 4px;
-    padding: 14px 16px;
-    text-align: left;
-}
-.btn-seed-title { font-weight: 600; color: var(--text); font-size: 0.95rem; }
-.btn-seed-sub { font-size: 0.78rem; color: var(--muted); }
 @media (max-width: 640px) {
     .athlete-grid { grid-template-columns: 1fr; }
 }
