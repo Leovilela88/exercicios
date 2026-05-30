@@ -20,6 +20,7 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
+from metrics import bmi, bmi_category, pace, sport_label
 from models import Athlete, Settings, Workout
 from strava_import import parse_strava_csv
 
@@ -123,6 +124,12 @@ _ensure_pwa_icons()
 app = FastAPI(title="Exercícios")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
+
+# Helpers disponíveis nos templates Jinja
+templates.env.globals["pace"] = pace
+templates.env.globals["sport_label"] = sport_label
+templates.env.globals["bmi"] = bmi
+templates.env.globals["bmi_category"] = bmi_category
 
 
 # ------------- helpers -------------
@@ -410,6 +417,27 @@ def dashboard(
 
 # ------------- treinos -------------
 
+def _parse_workout_form(
+    sport: str, workout_date: str, distance_m: Optional[str],
+    duration_min: Optional[str], calories: Optional[str], weight_kg: float,
+) -> dict:
+    """Normaliza os campos do form e calcula calorias quando vazio."""
+    if sport not in SPORTS:
+        sport = "outro"
+    try:
+        d = date.fromisoformat(workout_date)
+    except ValueError:
+        d = date.today()
+    dist_m_val = _to_float(distance_m)
+    dist = (dist_m_val / 1000.0) if dist_m_val else None
+    dur = _to_float(duration_min)
+    cal = _to_float(calories)
+    if cal is None:
+        cal = estimate_calories(sport, weight_kg, dist, dur)
+    return {"date": d, "sport": sport, "distance_km": dist,
+            "duration_min": dur, "calories": cal}
+
+
 @app.get("/novo", response_class=HTMLResponse)
 def new_form(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
@@ -420,6 +448,8 @@ def new_form(request: Request, db: Session = Depends(get_db)):
             "athlete": athlete,
             "athletes": get_all_athletes(db),
             "today": date.today().isoformat(),
+            "workout": None,
+            "action": "/novo",
         },
     )
 
@@ -435,40 +465,66 @@ def create_workout(
     notes: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
-    if sport not in SPORTS:
-        sport = "outro"
-    try:
-        d = date.fromisoformat(workout_date)
-    except ValueError:
-        d = date.today()
-
     athlete = get_active_athlete(request, db)
-    dist_m_val = _to_float(distance_m)
-    dist = (dist_m_val / 1000.0) if dist_m_val else None
-    dur = _to_float(duration_min)
-    cal = _to_float(calories)
-
-    if cal is None:
-        cal = estimate_calories(sport, athlete.weight_kg, dist, dur)
-
-    workout = Workout(
-        athlete_id=athlete.id,
-        date=d,
-        sport=sport,
-        distance_km=dist,
-        duration_min=dur,
-        calories=cal,
-        notes=(notes or None),
-    )
-    db.add(workout)
+    fields = _parse_workout_form(sport, workout_date, distance_m,
+                                 duration_min, calories, athlete.weight_kg)
+    db.add(Workout(athlete_id=athlete.id, notes=(notes or None), **fields))
     db.commit()
     return RedirectResponse(url="/", status_code=303)
+
+
+@app.get("/treino/{workout_id}/editar", response_class=HTMLResponse)
+def edit_form(request: Request, workout_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    w = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.athlete_id == athlete.id
+    ).first()
+    if not w:
+        return RedirectResponse(url="/treinos", status_code=303)
+    return templates.TemplateResponse(
+        "form.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "today": date.today().isoformat(),
+            "workout": w,
+            "action": f"/treino/{w.id}/editar",
+        },
+    )
+
+
+@app.post("/treino/{workout_id}/editar")
+def edit_workout(
+    request: Request,
+    workout_id: int,
+    sport: str = Form(...),
+    workout_date: str = Form(...),
+    distance_m: Optional[str] = Form(None),
+    duration_min: Optional[str] = Form(None),
+    calories: Optional[str] = Form(None),
+    notes: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    w = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.athlete_id == athlete.id
+    ).first()
+    if w:
+        fields = _parse_workout_form(sport, workout_date, distance_m,
+                                     duration_min, calories, athlete.weight_kg)
+        for k, v in fields.items():
+            setattr(w, k, v)
+        w.notes = notes or None
+        db.commit()
+    return RedirectResponse(url="/treinos", status_code=303)
 
 
 @app.post("/delete/{workout_id}")
 def delete_workout(
     request: Request,
     workout_id: int,
+    redirect: str = Form("/"),
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
@@ -478,7 +534,46 @@ def delete_workout(
     if w:
         db.delete(w)
         db.commit()
-    return RedirectResponse(url="/", status_code=303)
+    dest = redirect if redirect in ("/", "/treinos") else "/"
+    return RedirectResponse(url=dest, status_code=303)
+
+
+PAGE_SIZE = 25
+
+
+@app.get("/treinos", response_class=HTMLResponse)
+def workouts_history(
+    request: Request,
+    sport: Optional[str] = None,
+    page: int = 1,
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    q = db.query(Workout).filter(Workout.athlete_id == athlete.id)
+    if sport in SPORTS:
+        q = q.filter(Workout.sport == sport)
+    total = q.count()
+    page = max(1, page)
+    pages = max(1, (total + PAGE_SIZE - 1) // PAGE_SIZE)
+    page = min(page, pages)
+    rows = (
+        q.order_by(Workout.date.desc(), Workout.id.desc())
+        .offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
+    )
+    return templates.TemplateResponse(
+        "workouts.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "rows": rows,
+            "total": total,
+            "page": page,
+            "pages": pages,
+            "sport": sport if sport in SPORTS else None,
+            "sports": SPORTS,
+        },
+    )
 
 
 # ------------- atletas -------------

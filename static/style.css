@@ -814,6 +814,74 @@ input[type="file"]:hover { border-color: var(--accent); background: var(--panel-
 }
 .btn-icon:hover { color: var(--danger); background: rgba(239, 68, 68, 0.10); }
 
+/* Editar (link) tem hover azul, não vermelho */
+a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
+
+.row-actions {
+    display: flex;
+    gap: 2px;
+    align-items: center;
+    justify-content: flex-end;
+}
+.row-actions form { margin: 0; }
+
+.chart-link {
+    text-decoration: none;
+    transition: color .15s;
+}
+.chart-link:hover { color: var(--accent); }
+
+.notes-cell {
+    max-width: 220px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--muted);
+}
+
+/* Paginação */
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 18px;
+    padding-top: 16px;
+    border-top: 1px solid var(--border);
+}
+.page-info { color: var(--muted); font-size: 0.88rem; }
+.is-disabled { opacity: 0.4; pointer-events: none; }
+
+/* IMC no card do atleta */
+.imc-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 14px;
+    padding: 10px 12px;
+    background: var(--panel-2);
+    border-radius: 8px;
+}
+.imc-label {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--muted);
+    font-weight: 600;
+}
+.imc-value { font-size: 1.15rem; font-weight: 700; color: var(--text); }
+.imc-cat {
+    margin-left: auto;
+    font-size: 0.78rem;
+    font-weight: 500;
+    padding: 3px 10px;
+    border-radius: 100px;
+}
+.imc-peso-normal { background: rgba(16,185,129,0.15); color: #34d399; }
+.imc-abaixo-do-peso { background: rgba(59,130,246,0.15); color: #60a5fa; }
+.imc-sobrepeso { background: rgba(249,115,22,0.15); color: #fb923c; }
+.imc-obesidade { background: rgba(239,68,68,0.15); color: #f87171; }
+
 @media (max-width: 640px) {
     .container { padding: 22px 18px 60px; }
     .nav-inner { padding: 12px 18px; }

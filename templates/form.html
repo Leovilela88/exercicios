@@ -1,41 +1,40 @@
 {% extends "base.html" %}
-{% block title %}Novo treino - Exercícios{% endblock %}
+{% block title %}{{ "Editar treino" if workout else "Novo treino" }} - Exercícios{% endblock %}
 {% block content %}
+{% set dist_m = (workout.distance_km * 1000)|round|int if workout and workout.distance_km else '' %}
 <header class="page-header">
     <div>
-        <h1 class="page-title">Novo treino</h1>
-        <p class="page-sub">Registrando para <strong>{{ athlete.name }}</strong> · calorias são estimadas automaticamente se o campo ficar vazio.</p>
+        <h1 class="page-title">{{ "Editar treino" if workout else "Novo treino" }}</h1>
+        <p class="page-sub">{{ "Editando treino de" if workout else "Registrando para" }} <strong>{{ athlete.name }}</strong> · calorias são estimadas automaticamente se o campo ficar vazio.</p>
     </div>
 </header>
-<form method="post" action="/novo" class="form" id="workout-form">
+<form method="post" action="{{ action }}" class="form" id="workout-form">
     <div class="row">
         <label>
             <span>Data</span>
-            <input type="date" name="workout_date" value="{{ today }}" required />
+            <input type="date" name="workout_date" value="{{ workout.date.isoformat() if workout else today }}" required />
         </label>
         <label>
             <span>Esporte</span>
             <select name="sport" id="f-sport" required>
-                <option value="corrida">🏃 Corrida</option>
-                <option value="natacao">🏊 Natação</option>
-                <option value="musculacao">🏋️ Musculação</option>
-                <option value="trilha">🥾 Trilha / Caminhada</option>
-                <option value="outro">💪 Outro</option>
+                {% for val, lbl in [('corrida','🏃 Corrida'), ('natacao','🏊 Natação'), ('musculacao','🏋️ Musculação'), ('trilha','🥾 Trilha / Caminhada'), ('outro','💪 Outro')] %}
+                <option value="{{ val }}" {% if workout and workout.sport == val %}selected{% endif %}>{{ lbl }}</option>
+                {% endfor %}
             </select>
         </label>
     </div>
     <div class="row">
         <label id="f-dist-wrap">
             <span>Distância (metros)</span>
-            <input type="number" step="1" min="0" name="distance_m" id="f-dist" placeholder="ex: 5200" />
+            <input type="number" step="1" min="0" name="distance_m" id="f-dist" value="{{ dist_m }}" placeholder="ex: 5200" />
         </label>
         <label>
             <span>Duração (min)</span>
-            <input type="number" step="1" min="0" name="duration_min" id="f-dur" placeholder="ex: 30" />
+            <input type="number" step="1" min="0" name="duration_min" id="f-dur" value="{{ workout.duration_min|round|int if workout and workout.duration_min else '' }}" placeholder="ex: 30" />
         </label>
         <label>
             <span>Calorias (kcal) <em>opcional</em></span>
-            <input type="number" step="1" min="0" name="calories" id="f-cal" placeholder="auto" />
+            <input type="number" step="1" min="0" name="calories" id="f-cal" value="{{ workout.calories|round|int if workout and workout.calories else '' }}" placeholder="auto" />
         </label>
     </div>
     <div class="estimate" id="estimate" hidden>
@@ -44,11 +43,11 @@
     </div>
     <label>
         <span>Notas</span>
-        <textarea name="notes" rows="3" placeholder="Como foi o treino?"></textarea>
+        <textarea name="notes" rows="3" placeholder="Como foi o treino?">{{ workout.notes if workout and workout.notes else '' }}</textarea>
     </label>
     <div class="actions">
-        <a href="/" class="btn-ghost">Cancelar</a>
-        <button type="submit" class="btn-primary">Salvar treino</button>
+        <a href="{{ '/treinos' if workout else '/' }}" class="btn-ghost">Cancelar</a>
+        <button type="submit" class="btn-primary">{{ "Salvar alterações" if workout else "Salvar treino" }}</button>
     </div>
     <p class="form-foot">Atleta: <strong>{{ athlete.name }}</strong> · peso <strong>{{ "%.1f"|format(athlete.weight_kg) }} kg</strong> · <a href="/atletas">trocar / editar</a></p>
 </form>

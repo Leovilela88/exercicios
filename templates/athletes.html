@@ -66,6 +66,14 @@
                 {% endif %}
             </div>
         </header>
+        {% set imc = bmi(a.weight_kg, a.height_cm) %}
+        {% if imc %}
+        <div class="imc-row">
+            <span class="imc-label">IMC</span>
+            <span class="imc-value">{{ "%.1f"|format(imc) }}</span>
+            <span class="imc-cat imc-{{ bmi_category(imc)|replace(' ', '-') }}">{{ bmi_category(imc) }}</span>
+        </div>
+        {% endif %}
         <form method="post" action="/atletas/{{ a.id }}/edit" class="form-inline">
             <div class="row">
                 <label>
