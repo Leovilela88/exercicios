@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% block title %}Metas - Exercícios{% endblock %}
+{% block content %}
+{% set metric_labels = {'distance': 'Distância (km)', 'count': 'Nº de treinos', 'duration': 'Duração (min)', 'calories': 'Calorias (kcal)'} %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Metas</h1>
+        <p class="page-sub">Objetivos semanais e mensais de <strong>{{ athlete.name }}</strong></p>
+    </div>
+</header>
+
+<section class="goals-list">
+    {% if progress %}
+    {% for p in progress %}
+    <article class="goal-card {% if p.done %}goal-done{% endif %}">
+        <div class="goal-top">
+            <div class="goal-title">
+                <strong>{{ p.metric_label }}</strong> · {{ p.scope }}
+                <span class="goal-period">{{ p.period_label }}</span>
+            </div>
+            <form method="post" action="/metas/{{ p.goal.id }}/delete" onsubmit="return confirm('Excluir meta?');">
+                <button class="btn-icon" type="submit" title="Excluir meta">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                </button>
+            </form>
+        </div>
+        <div class="goal-bar">
+            <div class="goal-fill" style="width: {{ p.pct }}%"></div>
+        </div>
+        <div class="goal-foot">
+            <span class="goal-values">
+                {{ "%.0f"|format(p.value) if p.metric in ('count',) else "%.1f"|format(p.value) }}
+                / {{ "%.0f"|format(p.target) }} {{ p.unit }}
+            </span>
+            <span class="goal-pct {% if p.done %}is-done{% endif %}">
+                {% if p.done %}✓ concluída{% else %}{{ p.pct }}%{% endif %}
+            </span>
+        </div>
+    </article>
+    {% endfor %}
+    {% else %}
+    <p class="empty">Nenhuma meta ainda. Crie a primeira abaixo 👇</p>
+    {% endif %}
+</section>
+
+<section class="form" style="margin-top: 24px; max-width: 720px;">
+    <h2 class="form-title">Nova meta</h2>
+    <form method="post" action="/metas">
+        <div class="row">
+            <label>
+                <span>Quero medir</span>
+                <select name="metric" required>
+                    {% for m in metrics %}
+                    <option value="{{ m }}">{{ metric_labels[m] }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+            <label>
+                <span>Esporte</span>
+                <select name="sport">
+                    <option value="">Todos</option>
+                    {% for s in sports %}
+                    <option value="{{ s }}">{{ sport_label(s) }}</option>
+                    {% endfor %}
+                </select>
+            </label>
+        </div>
+        <div class="row">
+            <label>
+                <span>Período</span>
+                <select name="period" required>
+                    <option value="week">Por semana</option>
+                    <option value="month">Por mês</option>
+                </select>
+            </label>
+            <label>
+                <span>Alvo</span>
+                <input type="number" step="0.1" min="0.1" name="target" required placeholder="ex: 30" />
+            </label>
+        </div>
+        <p class="hint">Ex.: <em>Distância · Corrida · por mês · 30</em> = correr 30 km neste mês. O progresso aparece aqui e no dashboard.</p>
+        <div class="actions">
+            <button type="submit" class="btn-primary">Criar meta</button>
+        </div>
+    </form>
+</section>
+{% endblock %}

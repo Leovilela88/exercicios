@@ -304,6 +304,153 @@ body {
 }
 .card-foot strong { color: var(--text-2); font-weight: 600; }
 
+/* ---------- Comparativo de período ---------- */
+.compare-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 16px;
+    margin-bottom: 28px;
+}
+.compare-box {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+}
+.compare-head {
+    font-size: 0.98rem;
+    font-weight: 600;
+    color: var(--text);
+    margin-bottom: 14px;
+}
+.compare-sub { color: var(--muted); font-weight: 400; font-size: 0.8rem; }
+.compare-rows { display: flex; flex-direction: column; gap: 10px; }
+.compare-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+.compare-metric { font-size: 1.05rem; font-weight: 600; color: var(--text); }
+.delta {
+    font-size: 0.82rem;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 100px;
+}
+.delta-up { background: rgba(16,185,129,0.15); color: #34d399; }
+.delta-down { background: rgba(239,68,68,0.15); color: #f87171; }
+.delta-flat { background: rgba(148,163,184,0.12); color: var(--muted); }
+
+/* ---------- Seções de painel (metas, recordes) ---------- */
+.panel-section { margin-bottom: 28px; }
+.section-head {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    margin-bottom: 14px;
+}
+.section-head h2 {
+    margin: 0;
+    font-size: 1.1rem;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+}
+.section-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color .15s;
+}
+.section-link:hover { color: var(--accent); }
+
+/* Metas (barra de progresso) */
+.goals-list { display: flex; flex-direction: column; gap: 14px; }
+.goals-mini {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 14px;
+}
+.goal-card, .goal-mini {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+}
+.goal-done { border-color: rgba(16,185,129,0.4); }
+.goal-top, .goal-mini-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+    font-size: 0.9rem;
+    color: var(--text-2);
+}
+.goal-mini-top { margin-bottom: 10px; }
+.goal-title strong { color: var(--text); }
+.goal-period {
+    background: var(--panel-2);
+    color: var(--muted);
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 100px;
+    margin-left: 4px;
+}
+.goal-bar {
+    height: 9px;
+    background: var(--panel-2);
+    border-radius: 100px;
+    overflow: hidden;
+}
+.goal-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #3b82f6, #60a5fa);
+    border-radius: 100px;
+    transition: width .4s ease;
+}
+.goal-done .goal-fill { background: linear-gradient(90deg, #059669, #34d399); }
+.goal-foot, .goal-mini-foot {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: 10px;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.goal-mini-foot { justify-content: flex-start; }
+.goal-values { color: var(--text-2); font-weight: 500; }
+.goal-pct { font-weight: 600; color: var(--accent); }
+.goal-pct.is-done { color: #34d399; }
+
+/* Recordes */
+.records-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+    gap: 14px;
+}
+.record-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+}
+.record-label {
+    font-size: 0.82rem;
+    color: var(--muted);
+    margin-bottom: 8px;
+}
+.record-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    color: var(--text);
+}
+.record-unit { font-size: 0.9rem; color: var(--muted); font-weight: 500; }
+.record-sub { font-size: 0.78rem; color: var(--muted-2); margin-top: 4px; }
+
 /* ---------- Charts ---------- */
 .charts-grid {
     display: grid;

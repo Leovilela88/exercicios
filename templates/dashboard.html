@@ -66,6 +66,106 @@
     </div>
 </section>
 
+{# --- Comparativo de período --- #}
+{% macro delta(pct) %}
+    {% if pct is none %}
+        <span class="delta delta-flat">novo</span>
+    {% elif pct > 0 %}
+        <span class="delta delta-up">▲ {{ pct }}%</span>
+    {% elif pct < 0 %}
+        <span class="delta delta-down">▼ {{ pct|abs }}%</span>
+    {% else %}
+        <span class="delta delta-flat">0%</span>
+    {% endif %}
+{% endmacro %}
+
+<section class="compare-grid">
+    {% for key, titulo in [('week', 'Esta semana'), ('month', 'Este mês')] %}
+    {% set c = comparison[key] %}
+    <div class="compare-box">
+        <div class="compare-head">{{ titulo }} <span class="compare-sub">vs {{ 'semana' if key == 'week' else 'mês' }} anterior</span></div>
+        <div class="compare-rows">
+            <div class="compare-row">
+                <span class="compare-metric">{{ "%.1f"|format(c.cur.km) }} km</span>
+                {{ delta(c.pct_km) }}
+            </div>
+            <div class="compare-row">
+                <span class="compare-metric">{{ c.cur.count }} treino{{ 's' if c.cur.count != 1 else '' }}</span>
+                {{ delta(c.pct_count) }}
+            </div>
+            <div class="compare-row">
+                <span class="compare-metric">{{ "{:,.0f}".format(c.cur.cal).replace(',', '.') }} kcal</span>
+                {{ delta(c.pct_cal) }}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</section>
+
+{# --- Metas --- #}
+<section class="panel-section">
+    <div class="section-head">
+        <h2>Metas</h2>
+        <a class="section-link" href="/metas">gerenciar →</a>
+    </div>
+    {% if goals_progress %}
+    <div class="goals-mini">
+        {% for p in goals_progress %}
+        <div class="goal-mini {% if p.done %}goal-done{% endif %}">
+            <div class="goal-mini-top">
+                <span>{{ p.metric_label }}{% if p.goal.sport %} · {{ p.scope }}{% endif %} <span class="goal-period">{{ p.period_label }}</span></span>
+                <span class="goal-pct {% if p.done %}is-done{% endif %}">{% if p.done %}✓{% else %}{{ p.pct }}%{% endif %}</span>
+            </div>
+            <div class="goal-bar"><div class="goal-fill" style="width: {{ p.pct }}%"></div></div>
+            <div class="goal-mini-foot">{{ "%.0f"|format(p.value) if p.goal.metric == 'count' else "%.1f"|format(p.value) }} / {{ "%.0f"|format(p.target) }} {{ p.unit }}</div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">Nenhuma meta definida. <a href="/metas">Criar uma meta</a> → transforma o app em acompanhamento.</p>
+    {% endif %}
+</section>
+
+{# --- Recordes pessoais --- #}
+<section class="panel-section">
+    <div class="section-head"><h2>Recordes pessoais</h2></div>
+    <div class="records-grid">
+        <div class="record-card">
+            <div class="record-label">🏅 Maior distância</div>
+            {% if records.longest_dist and records.longest_dist.distance_km %}
+            <div class="record-value">{{ "%.2f"|format(records.longest_dist.distance_km) }} km</div>
+            <div class="record-sub">{{ sport_label(records.longest_dist.sport) }} · {{ records.longest_dist.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label">⏱️ Treino mais longo</div>
+            {% if records.longest_dur and records.longest_dur.duration_min %}
+            <div class="record-value">{{ "%.0f"|format(records.longest_dur.duration_min) }} min</div>
+            <div class="record-sub">{{ sport_label(records.longest_dur.sport) }} · {{ records.longest_dur.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label">⚡ Melhor pace corrida</div>
+            {% if records.best_pace.corrida %}
+            <div class="record-value">{{ records.best_pace.corrida.pace }}</div>
+            <div class="record-sub">{{ records.best_pace.corrida.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label">🏊 Melhor pace natação</div>
+            {% if records.best_pace.natacao %}
+            <div class="record-value">{{ records.best_pace.natacao.pace }}</div>
+            <div class="record-sub">{{ records.best_pace.natacao.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label">🔥 Maior sequência</div>
+            <div class="record-value">{{ records.max_streak }} <span class="record-unit">{{ "dia" if records.max_streak == 1 else "dias" }}</span></div>
+            <div class="record-sub">dias consecutivos</div>
+        </div>
+    </div>
+</section>
+
 <section class="charts-grid">
     {% set range_label_map = dict(range_options) %}
     {% set range_label = range_label_map[range_key] %}

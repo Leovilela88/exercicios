@@ -31,6 +31,18 @@ class Workout(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class Goal(Base):
+    __tablename__ = "goals"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    sport = Column(String(20), nullable=True)        # None = todos os esportes
+    metric = Column(String(20), nullable=False)      # distance | count | duration | calories
+    period = Column(String(10), nullable=False)      # week | month
+    target = Column(Float, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 # Mantida só por compatibilidade com bases antigas (não usada após migração).
 class Settings(Base):
     __tablename__ = "settings"

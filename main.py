@@ -19,8 +19,9 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label
-from models import Athlete, Settings, Workout
+from models import Athlete, Goal, Settings, Workout
 from strava_import import parse_strava_csv
+import stats
 
 SPORTS = ("corrida", "natacao", "musculacao", "trilha", "outro")
 
@@ -283,7 +284,7 @@ def dashboard(
     }
 
     # Streak permanece all-time (é uma métrica de "agora", não de período)
-    all_dates = {r[0] for r in aq(db.query(func.distinct(Workout.date))).all()}
+    all_dates = {stats._as_date(r[0]) for r in aq(db.query(Workout.date).distinct()).all()}
     streak = _current_streak(all_dates, today)
 
     range_rows = aq(
@@ -387,6 +388,15 @@ def dashboard(
         aq(db.query(Workout)).order_by(Workout.date.desc(), Workout.id.desc()).limit(10).all()
     )
 
+    # Engajamento: comparativo, recordes e progresso de metas
+    comparison = stats.period_comparison(db, athlete.id, today)
+    records = stats.personal_records(db, athlete.id)
+    goals = (
+        db.query(Goal).filter(Goal.athlete_id == athlete.id)
+        .order_by(Goal.id).all()
+    )
+    goals_progress = [stats.goal_progress(db, athlete.id, g, today) for g in goals]
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -395,6 +405,9 @@ def dashboard(
             "athletes": get_all_athletes(db),
             "totals": totals,
             "streak": streak,
+            "comparison": comparison,
+            "records": records,
+            "goals_progress": goals_progress,
             "labels": labels,
             "cal_series": cal_series,
             "active_series": active_series,
@@ -572,6 +585,68 @@ def workouts_history(
             "sports": SPORTS,
         },
     )
+
+
+# ------------- metas -------------
+
+GOAL_METRICS = ("distance", "count", "duration", "calories")
+GOAL_PERIODS = ("week", "month")
+
+
+@app.get("/metas", response_class=HTMLResponse)
+def goals_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    today = date.today()
+    goals = (
+        db.query(Goal).filter(Goal.athlete_id == athlete.id)
+        .order_by(Goal.id).all()
+    )
+    progress = [stats.goal_progress(db, athlete.id, g, today) for g in goals]
+    return templates.TemplateResponse(
+        "goals.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "progress": progress,
+            "sports": SPORTS,
+            "metrics": stats.GOAL_METRICS,
+            "periods": stats.GOAL_PERIODS,
+        },
+    )
+
+
+@app.post("/metas")
+def goals_create(
+    request: Request,
+    metric: str = Form(...),
+    period: str = Form(...),
+    target: str = Form(...),
+    sport: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    tgt = _to_float(target)
+    if metric in GOAL_METRICS and period in GOAL_PERIODS and tgt and tgt > 0:
+        db.add(Goal(
+            athlete_id=athlete.id,
+            sport=sport if sport in SPORTS else None,
+            metric=metric, period=period, target=tgt,
+        ))
+        db.commit()
+    return RedirectResponse(url="/metas", status_code=303)
+
+
+@app.post("/metas/{goal_id}/delete")
+def goals_delete(request: Request, goal_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    g = db.query(Goal).filter(
+        Goal.id == goal_id, Goal.athlete_id == athlete.id
+    ).first()
+    if g:
+        db.delete(g)
+        db.commit()
+    return RedirectResponse(url="/metas", status_code=303)
 
 
 # ------------- atletas -------------
