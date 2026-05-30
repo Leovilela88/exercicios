@@ -107,7 +107,7 @@
         <div class="compare-rows">
             {% if pace_run %}
             <div class="compare-row">
-                <span class="compare-metric">🏃 {{ pace_run.cur }}</span>
+                <span class="compare-metric"><span class="record-ico" style="color:#60a5fa">{{ bicon('run') }}</span> {{ pace_run.cur }}</span>
                 {% if pace_run.faster %}<span class="delta delta-up">▲ {{ pace_run.pct|abs }}% + rápido</span>
                 {% elif pace_run.pct > 0 %}<span class="delta delta-down">▼ {{ pace_run.pct }}% + lento</span>
                 {% else %}<span class="delta delta-flat">igual</span>{% endif %}
@@ -115,7 +115,7 @@
             {% endif %}
             {% if pace_swim %}
             <div class="compare-row">
-                <span class="compare-metric">🏊 {{ pace_swim.cur }}</span>
+                <span class="compare-metric"><span class="record-ico" style="color:#22d3ee">{{ bicon('waves') }}</span> {{ pace_swim.cur }}</span>
                 {% if pace_swim.faster %}<span class="delta delta-up">▲ {{ pace_swim.pct|abs }}% + rápido</span>
                 {% elif pace_swim.pct > 0 %}<span class="delta delta-down">▼ {{ pace_swim.pct }}% + lento</span>
                 {% else %}<span class="delta delta-flat">igual</span>{% endif %}
