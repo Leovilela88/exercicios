@@ -19,7 +19,7 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label
-from models import Athlete, Goal, Settings, WeightLog, Workout
+from models import Athlete, ExerciseEntry, Goal, Settings, WeightLog, Workout
 from strava_import import parse_strava_csv
 import achievements
 import stats
@@ -546,6 +546,92 @@ def edit_workout(
     return RedirectResponse(url="/treinos", status_code=303)
 
 
+@app.get("/treino/{workout_id}", response_class=HTMLResponse)
+def workout_detail(request: Request, workout_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    w = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.athlete_id == athlete.id
+    ).first()
+    if not w:
+        return RedirectResponse(url="/treinos", status_code=303)
+    exercises = (
+        db.query(ExerciseEntry).filter(ExerciseEntry.workout_id == w.id)
+        .order_by(ExerciseEntry.position, ExerciseEntry.id).all()
+    )
+    # volume total (séries × reps × peso) das entradas completas
+    volume = sum(
+        (e.sets or 0) * (e.reps or 0) * (e.weight_kg or 0) for e in exercises
+    )
+    # nomes de exercícios já usados pelo atleta (autocomplete)
+    used = (
+        db.query(ExerciseEntry.name)
+        .join(Workout, ExerciseEntry.workout_id == Workout.id)
+        .filter(Workout.athlete_id == athlete.id)
+        .distinct().all()
+    )
+    exercise_names = sorted({n for (n,) in used})
+    return templates.TemplateResponse(
+        "workout_detail.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "w": w,
+            "exercises": exercises,
+            "volume": volume,
+            "exercise_names": exercise_names,
+            "pace": pace(w.sport, w.distance_km, w.duration_min),
+        },
+    )
+
+
+@app.post("/treino/{workout_id}/exercicio")
+def add_exercise(
+    request: Request,
+    workout_id: int,
+    name: str = Form(...),
+    sets: Optional[str] = Form(None),
+    reps: Optional[str] = Form(None),
+    weight_kg: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    w = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.athlete_id == athlete.id
+    ).first()
+    if w and name.strip():
+        last_pos = (
+            db.query(func.coalesce(func.max(ExerciseEntry.position), -1))
+            .filter(ExerciseEntry.workout_id == w.id).scalar()
+        )
+        db.add(ExerciseEntry(
+            workout_id=w.id,
+            name=name.strip()[:100],
+            sets=_to_int(sets),
+            reps=_to_int(reps),
+            weight_kg=_to_float(weight_kg),
+            position=(last_pos or -1) + 1,
+        ))
+        db.commit()
+    return RedirectResponse(url=f"/treino/{workout_id}", status_code=303)
+
+
+@app.post("/exercicio/{entry_id}/delete")
+def delete_exercise(request: Request, entry_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    e = (
+        db.query(ExerciseEntry)
+        .join(Workout, ExerciseEntry.workout_id == Workout.id)
+        .filter(ExerciseEntry.id == entry_id, Workout.athlete_id == athlete.id)
+        .first()
+    )
+    wid = e.workout_id if e else None
+    if e:
+        db.delete(e)
+        db.commit()
+    return RedirectResponse(url=f"/treino/{wid}" if wid else "/treinos", status_code=303)
+
+
 @app.post("/delete/{workout_id}")
 def delete_workout(
     request: Request,
@@ -615,6 +701,13 @@ def workouts_history(
         q.order_by(Workout.date.desc(), Workout.id.desc())
         .offset((page - 1) * PAGE_SIZE).limit(PAGE_SIZE).all()
     )
+    # nº de exercícios por treino (1 query para a página)
+    ids = [r.id for r in rows]
+    ex_counts = dict(
+        db.query(ExerciseEntry.workout_id, func.count(ExerciseEntry.id))
+        .filter(ExerciseEntry.workout_id.in_(ids))
+        .group_by(ExerciseEntry.workout_id).all()
+    ) if ids else {}
     return templates.TemplateResponse(
         "workouts.html",
         {
@@ -629,6 +722,7 @@ def workouts_history(
             "sports": SPORTS,
             "cleaned_reclass": cleaned_reclass,
             "cleaned_removed": cleaned_removed,
+            "ex_counts": ex_counts,
         },
     )
 

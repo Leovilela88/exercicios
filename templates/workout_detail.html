@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Treino - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">{{ sport_label(w.sport) }} · {{ w.date.strftime('%d/%m/%Y') }}</h1>
+        <p class="page-sub">Detalhe do treino de <strong>{{ athlete.name }}</strong></p>
+    </div>
+    <a href="/treino/{{ w.id }}/editar" class="btn-ghost btn-small">Editar treino</a>
+</header>
+
+<section class="cards" style="margin-bottom: 24px;">
+    {% if w.distance_km %}
+    <div class="card"><div class="card-label">Distância</div><div class="card-value">{{ "%.2f"|format(w.distance_km) }}<span> km</span></div></div>
+    {% endif %}
+    {% if w.duration_min %}
+    <div class="card"><div class="card-label">Duração</div><div class="card-value">{{ "%.0f"|format(w.duration_min) }}<span> min</span></div></div>
+    {% endif %}
+    {% if pace %}
+    <div class="card"><div class="card-label">Ritmo</div><div class="card-value">{{ pace }}</div></div>
+    {% endif %}
+    {% if w.calories %}
+    <div class="card"><div class="card-label">Calorias</div><div class="card-value">{{ "%.0f"|format(w.calories) }}<span> kcal</span></div></div>
+    {% endif %}
+    {% if w.sport == 'musculacao' and volume %}
+    <div class="card"><div class="card-label">Volume total</div><div class="card-value">{{ "{:,.0f}".format(volume).replace(',', '.') }}<span> kg</span></div></div>
+    {% endif %}
+</section>
+
+{% if w.notes %}
+<p class="hint" style="margin-bottom: 24px;">{{ w.notes }}</p>
+{% endif %}
+
+{% if w.sport == 'musculacao' %}
+<section class="recent" style="margin-bottom: 24px;">
+    <div class="section-head"><h2>Exercícios</h2></div>
+    {% if exercises %}
+    <div class="table-wrap">
+        <table class="tbl">
+            <thead><tr><th>Exercício</th><th>Séries</th><th>Reps</th><th>Carga</th><th>Volume</th><th></th></tr></thead>
+            <tbody>
+            {% for e in exercises %}
+            <tr>
+                <td><strong>{{ e.name }}</strong></td>
+                <td>{{ e.sets if e.sets else "—" }}</td>
+                <td>{{ e.reps if e.reps else "—" }}</td>
+                <td>{{ "%.1f kg"|format(e.weight_kg) if e.weight_kg else "—" }}</td>
+                <td>{{ "{:,.0f} kg".format((e.sets or 0)*(e.reps or 0)*(e.weight_kg or 0)).replace(',', '.') if (e.sets and e.reps and e.weight_kg) else "—" }}</td>
+                <td class="row-actions">
+                    <form method="post" action="/exercicio/{{ e.id }}/delete" onsubmit="return confirm('Remover exercício?');">
+                        <button class="btn-icon" type="submit" title="Remover">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                        </button>
+                    </form>
+                </td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% else %}
+    <p class="empty">Nenhum exercício registrado. Adicione abaixo para montar o treino.</p>
+    {% endif %}
+</section>
+
+<section class="form" style="max-width: 760px;">
+    <h2 class="form-title">Adicionar exercício</h2>
+    <form method="post" action="/treino/{{ w.id }}/exercicio">
+        <label>
+            <span>Exercício</span>
+            <input type="text" name="name" list="exercise-names" required maxlength="100" placeholder="ex: Supino inclinado" autocomplete="off" />
+            <datalist id="exercise-names">
+                {% for n in exercise_names %}<option value="{{ n }}"></option>{% endfor %}
+            </datalist>
+        </label>
+        <div class="row">
+            <label>
+                <span>Séries</span>
+                <input type="number" step="1" min="1" max="50" name="sets" placeholder="ex: 4" />
+            </label>
+            <label>
+                <span>Repetições</span>
+                <input type="number" step="1" min="1" max="200" name="reps" placeholder="ex: 10" />
+            </label>
+            <label>
+                <span>Carga (kg)</span>
+                <input type="number" step="0.5" min="0" name="weight_kg" placeholder="ex: 40" />
+            </label>
+        </div>
+        <div class="actions">
+            <a href="/treinos" class="btn-ghost">Voltar</a>
+            <button type="submit" class="btn-primary">+ Adicionar exercício</button>
+        </div>
+    </form>
+</section>
+{% else %}
+<a href="/treinos" class="btn-ghost">Voltar aos treinos</a>
+{% endif %}
+{% endblock %}

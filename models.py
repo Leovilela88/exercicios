@@ -31,6 +31,19 @@ class Workout(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class ExerciseEntry(Base):
+    __tablename__ = "exercise_entries"
+
+    id = Column(Integer, primary_key=True, index=True)
+    workout_id = Column(Integer, ForeignKey("workouts.id"), nullable=False, index=True)
+    name = Column(String(100), nullable=False)
+    sets = Column(Integer, nullable=True)
+    reps = Column(Integer, nullable=True)
+    weight_kg = Column(Float, nullable=True)
+    position = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class WeightLog(Base):
     __tablename__ = "weight_logs"
 

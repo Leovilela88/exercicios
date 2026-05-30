@@ -1216,6 +1216,19 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
     white-space: nowrap;
     color: var(--muted);
 }
+.ex-count {
+    display: inline-block;
+    margin-left: 6px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    padding: 1px 7px;
+    border-radius: 100px;
+    background: rgba(239,68,68,0.15);
+    color: #f87171;
+    text-decoration: none;
+    vertical-align: middle;
+}
+.ex-count:hover { background: rgba(239,68,68,0.25); }
 
 /* Paginação */
 .pagination {
