@@ -627,10 +627,14 @@ def goals_create(
 ):
     athlete = get_active_athlete(request, db)
     tgt = _to_float(target)
+    sport_val = sport if sport in SPORTS else None
+    # Distância não se aplica a esportes sem deslocamento (musculação/outro)
+    if metric == "distance" and sport_val in ("musculacao", "outro"):
+        metric = "duration"
     if metric in GOAL_METRICS and period in GOAL_PERIODS and tgt and tgt > 0:
         db.add(Goal(
             athlete_id=athlete.id,
-            sport=sport if sport in SPORTS else None,
+            sport=sport_val,
             metric=metric, period=period, target=tgt,
         ))
         db.commit()

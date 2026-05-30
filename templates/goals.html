@@ -48,19 +48,19 @@
     <form method="post" action="/metas">
         <div class="row">
             <label>
-                <span>Quero medir</span>
-                <select name="metric" required>
-                    {% for m in metrics %}
-                    <option value="{{ m }}">{{ metric_labels[m] }}</option>
+                <span>Esporte</span>
+                <select name="sport" id="goal-sport">
+                    <option value="">Todos</option>
+                    {% for s in sports %}
+                    <option value="{{ s }}">{{ sport_label(s) }}</option>
                     {% endfor %}
                 </select>
             </label>
             <label>
-                <span>Esporte</span>
-                <select name="sport">
-                    <option value="">Todos</option>
-                    {% for s in sports %}
-                    <option value="{{ s }}">{{ sport_label(s) }}</option>
+                <span>Quero medir</span>
+                <select name="metric" id="goal-metric" required>
+                    {% for m in metrics %}
+                    <option value="{{ m }}">{{ metric_labels[m] }}</option>
                     {% endfor %}
                 </select>
             </label>
@@ -78,10 +78,38 @@
                 <input type="number" step="0.1" min="0.1" name="target" required placeholder="ex: 30" />
             </label>
         </div>
-        <p class="hint">Ex.: <em>Distância · Corrida · por mês · 30</em> = correr 30 km neste mês. O progresso aparece aqui e no dashboard.</p>
+        <p class="hint">Ex.: <em>Corrida · Distância · por mês · 30</em> = correr 30 km neste mês. Para musculação, use duração, nº de treinos ou calorias.</p>
         <div class="actions">
             <button type="submit" class="btn-primary">Criar meta</button>
         </div>
     </form>
 </section>
+
+<script>
+    // Esportes sem distância: distância (km) não faz sentido como métrica.
+    const NO_DISTANCE = ['musculacao', 'outro'];
+    const METRICS = {{ metrics|list|tojson }};
+    const LABELS = {{ metric_labels|tojson }};
+    const sportSel = document.getElementById('goal-sport');
+    const metricSel = document.getElementById('goal-metric');
+
+    function rebuildMetrics() {
+        const hideDistance = NO_DISTANCE.includes(sportSel.value);
+        const current = metricSel.value;
+        metricSel.innerHTML = '';
+        for (const m of METRICS) {
+            if (m === 'distance' && hideDistance) continue;
+            const opt = document.createElement('option');
+            opt.value = m;
+            opt.textContent = LABELS[m];
+            metricSel.appendChild(opt);
+        }
+        // mantém a seleção anterior se ainda for válida
+        if ([...metricSel.options].some(o => o.value === current)) {
+            metricSel.value = current;
+        }
+    }
+    sportSel.addEventListener('change', rebuildMetrics);
+    rebuildMetrics();
+</script>
 {% endblock %}
