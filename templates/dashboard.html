@@ -138,14 +138,14 @@
         <div class="goal-mini {% if p.done %}goal-done{% endif %}">
             <div class="goal-mini-top">
                 <span>{{ p.metric_label }}{% if p.goal.sport %} · {{ p.scope }}{% endif %} <span class="goal-period">{{ p.period_label }}</span></span>
-                <span class="goal-pct {% if p.done %}is-done{% endif %}">{% if p.done %}✓{% else %}{{ p.pct }}%{% endif %}</span>
+                <span class="goal-pct {% if p.done %}is-done{% endif %}">{% if p.done %}<span class="ico-inline">{{ bicon('check') }}</span>{% else %}{{ p.pct }}%{% endif %}</span>
             </div>
             <div class="goal-bar"><div class="goal-fill" style="width: {{ p.pct }}%"></div></div>
             <div class="goal-mini-foot">
                 <span>{{ "%.0f"|format(p.value) if p.goal.metric == 'count' else "%.1f"|format(p.value) }} / {{ "%.0f"|format(p.target) }} {{ p.unit }}</span>
                 {% if not p.done %}
                 <span class="goal-proj {% if p.on_track %}proj-ok{% else %}proj-behind{% endif %}" title="Projeção pelo ritmo atual">
-                    {% if p.on_track %}✓ no ritmo{% else %}↘ projeção {{ "%.0f"|format(p.projected) }}{% endif %}
+                    {% if p.on_track %}<span class="ico-inline">{{ bicon('check') }}</span> no ritmo{% else %}projeção {{ "%.0f"|format(p.projected) }}{% endif %}
                 </span>
                 {% endif %}
             </div>

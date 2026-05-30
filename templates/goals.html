@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import bicon %}
 {% block title %}Metas - Exercícios{% endblock %}
 {% block content %}
 {% set metric_labels = {'distance': 'Distância (km)', 'count': 'Nº de treinos', 'duration': 'Duração (min)', 'calories': 'Calorias (kcal)'} %}
@@ -33,7 +34,7 @@
                 / {{ "%.0f"|format(p.target) }} {{ p.unit }}
             </span>
             <span class="goal-pct {% if p.done %}is-done{% endif %}">
-                {% if p.done %}✓ concluída{% else %}{{ p.pct }}%{% endif %}
+                {% if p.done %}<span class="ico-inline">{{ bicon('check') }}</span> concluída{% else %}{{ p.pct }}%{% endif %}
             </span>
         </div>
     </article>

@@ -623,12 +623,28 @@ body {
 .rank-leader { border-color: rgba(251,191,36,0.45); background: linear-gradient(135deg, rgba(251,191,36,0.06), transparent); }
 .rank-me { box-shadow: inset 0 0 0 1px rgba(59,130,246,0.3), var(--shadow); }
 .rank-pos {
-    font-size: 1.6rem;
+    font-size: 1.25rem;
     font-weight: 700;
-    min-width: 40px;
-    text-align: center;
+    min-width: 44px;
+    height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 12px;
+    background: var(--panel-2);
     color: var(--muted);
+    flex-shrink: 0;
 }
+.rank-pos-1 { background: linear-gradient(135deg, #fbbf24, #f59e0b); color: #1a1206; }
+.rank-pos-2 { background: linear-gradient(135deg, #e2e8f0, #94a3b8); color: #1e293b; }
+.rank-pos-3 { background: linear-gradient(135deg, #d97757, #b45309); color: #1a0f06; }
+
+.ico-inline {
+    display: inline-flex;
+    vertical-align: -2px;
+}
+.ico-inline svg { width: 14px; height: 14px; }
+.rank-streak .ico-inline svg { width: 13px; height: 13px; }
 .rank-body { flex: 1; min-width: 0; }
 .rank-name { font-size: 1.1rem; font-weight: 600; color: var(--text); margin-bottom: 4px; }
 .rank-you {

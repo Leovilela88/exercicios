@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import bicon %}
 {% block title %}Ranking - Exercícios{% endblock %}
 {% block content %}
 <header class="page-header">
@@ -14,9 +15,8 @@
 
 <section class="rank-list">
     {% for r in rows %}
-    {% set medals = {1: '🥇', 2: '🥈', 3: '🥉'} %}
     <article class="rank-card {% if r.pos == 1 and r.km > 0 %}rank-leader{% endif %} {% if r.athlete.id == athlete.id %}rank-me{% endif %}">
-        <div class="rank-pos">{{ medals.get(r.pos, r.pos) }}</div>
+        <div class="rank-pos rank-pos-{{ r.pos if r.pos <= 3 else 'n' }}">{{ r.pos }}º</div>
         {% if r.athlete.photo_mime %}
         <img class="avatar avatar-lg" src="/atletas/{{ r.athlete.id }}/foto" alt="{{ r.athlete.name }}" />
         {% else %}
@@ -28,7 +28,7 @@
                 <span><strong>{{ "%.1f"|format(r.km) }}</strong> km</span>
                 <span><strong>{{ r.count }}</strong> treino{{ 's' if r.count != 1 else '' }}</span>
                 <span><strong>{{ "{:,.0f}".format(r.cal).replace(',', '.') }}</strong> kcal</span>
-                <span>🔥 <strong>{{ r.streak }}</strong> {{ 'dia' if r.streak == 1 else 'dias' }}</span>
+                <span class="rank-streak"><span class="ico-inline" style="color:#f87171">{{ bicon('flame') }}</span> <strong>{{ r.streak }}</strong> {{ 'dia' if r.streak == 1 else 'dias' }}</span>
             </div>
         </div>
     </article>

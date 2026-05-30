@@ -17,7 +17,7 @@
         <label>
             <span>Esporte</span>
             <select name="sport" id="f-sport" required>
-                {% for val, lbl in [('corrida','🏃 Corrida'), ('natacao','🏊 Natação'), ('musculacao','🏋️ Musculação'), ('trilha','🥾 Trilha / Caminhada'), ('outro','💪 Outro')] %}
+                {% for val, lbl in [('corrida','Corrida'), ('natacao','Natação'), ('musculacao','Musculação'), ('trilha','Trilha / Caminhada'), ('outro','Outro')] %}
                 <option value="{{ val }}" {% if workout and workout.sport == val %}selected{% endif %}>{{ lbl }}</option>
                 {% endfor %}
             </select>
