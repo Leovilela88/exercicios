@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=19" />
+    <link rel="stylesheet" href="/static/style.css?v=20" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -108,31 +108,85 @@
     Instalar app
 </button>
 
+<div id="install-modal" class="modal-overlay" hidden>
+    <div class="modal">
+        <button class="modal-close" id="install-close" aria-label="Fechar">&times;</button>
+        <h2>Instalar o Exercícios</h2>
+        <div id="install-android" hidden>
+            <p>No Chrome do Android:</p>
+            <ol>
+                <li>Toque no menu <strong>⋮</strong> (canto superior direito).</li>
+                <li>Toque em <strong>"Instalar app"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</li>
+                <li>Confirme. O ícone aparece junto com seus outros apps.</li>
+            </ol>
+        </div>
+        <div id="install-ios" hidden>
+            <p>No Safari do iPhone/iPad:</p>
+            <ol>
+                <li>Toque no botão <strong>Compartilhar</strong> (quadrado com seta para cima).</li>
+                <li>Role e toque em <strong>"Adicionar à Tela de Início"</strong>.</li>
+                <li>Toque em <strong>Adicionar</strong>. Pronto!</li>
+            </ol>
+        </div>
+        <div id="install-generic" hidden>
+            <p>Abra este site no <strong>Chrome (Android)</strong> ou <strong>Safari (iPhone)</strong> e procure a opção <strong>"Adicionar à tela inicial"</strong> no menu do navegador.</p>
+        </div>
+    </div>
+</div>
+
 <script>
-    // Registra o service worker (PWA)
     if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
             navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
     }
-    // Botão de instalação (Android/Chrome)
-    let deferredPrompt = null;
-    const installBtn = document.getElementById('install-btn');
-    window.addEventListener('beforeinstallprompt', (e) => {
-        e.preventDefault();
-        deferredPrompt = e;
-        if (installBtn) installBtn.hidden = false;
-    });
-    if (installBtn) {
-        installBtn.addEventListener('click', async () => {
-            if (!deferredPrompt) return;
-            deferredPrompt.prompt();
-            await deferredPrompt.userChoice;
-            deferredPrompt = null;
-            installBtn.hidden = true;
+
+    (function () {
+        const btn = document.getElementById('install-btn');
+        const modal = document.getElementById('install-modal');
+        const closeBtn = document.getElementById('install-close');
+        if (!btn) return;
+
+        const isStandalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+        if (isStandalone) return;  // já instalado: não mostra nada
+
+        const ua = navigator.userAgent || '';
+        const isIOS = /iphone|ipad|ipod/i.test(ua);
+        let deferredPrompt = null;
+
+        // Captura o prompt nativo do Android/Chrome quando disponível
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
         });
-    }
-    window.addEventListener('appinstalled', () => { if (installBtn) installBtn.hidden = true; });
+
+        // Mostra o botão sempre (exceto já instalado) — ele sempre faz algo
+        btn.hidden = false;
+
+        function openModal() {
+            document.getElementById('install-android').hidden = isIOS;
+            document.getElementById('install-ios').hidden = !isIOS;
+            document.getElementById('install-generic').hidden = true;
+            modal.hidden = false;
+        }
+        function closeModal() { modal.hidden = true; }
+
+        btn.addEventListener('click', async () => {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                const { outcome } = await deferredPrompt.userChoice;
+                deferredPrompt = null;
+                if (outcome === 'accepted') btn.hidden = true;
+            } else {
+                openModal();  // sem prompt nativo (iOS, ou Chrome não ofereceu): instruções
+            }
+        });
+
+        closeBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => { if (e.target === modal) closeModal(); });
+        window.addEventListener('appinstalled', () => { btn.hidden = true; });
+    })();
 </script>
 </body>
 </html>
