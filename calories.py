@@ -33,6 +33,21 @@ def _swim_met(speed_kmh: float) -> float:
     return 10.0
 
 
+def _bike_met(speed_kmh: float) -> float:
+    # Ciclismo (Compendium): varia bastante com a velocidade.
+    if speed_kmh < 16:
+        return 4.0    # lazer
+    if speed_kmh < 19:
+        return 6.8
+    if speed_kmh < 22:
+        return 8.0
+    if speed_kmh < 25:
+        return 10.0
+    if speed_kmh < 30:
+        return 12.0
+    return 15.8       # corrida/competição
+
+
 def _trail_met(speed_kmh: float) -> float:
     # Caminhada / hike: depende do ritmo e do terreno.
     if speed_kmh < 4.0:
@@ -61,7 +76,8 @@ def estimate_calories(
         return None
 
     # Inferir duração quando só temos distância (estima ritmo padrão por esporte)
-    default_speed = {"corrida": 10.0, "natacao": 2.5, "trilha": 4.5}.get(sport, 5.0)
+    default_speed = {"corrida": 10.0, "natacao": 2.5, "trilha": 4.5,
+                     "bike": 20.0}.get(sport, 5.0)
 
     if duration_min and duration_min > 0:
         hours = duration_min / 60.0
@@ -79,6 +95,8 @@ def estimate_calories(
         met = _swim_met(speed_kmh)
     elif sport == "trilha":
         met = _trail_met(speed_kmh)
+    elif sport == "bike":
+        met = _bike_met(speed_kmh)
     elif sport == "musculacao":
         met = 5.0  # treino resistido vigoroso
     else:

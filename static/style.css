@@ -275,6 +275,7 @@ body {
 .card-days .card-icon { background: rgba(16,185,129,0.15); color: #34d399; }
 .card-gym .card-icon { background: rgba(239,68,68,0.15); color: #f87171; }
 .card-trail .card-icon { background: rgba(132,204,22,0.15); color: #a3e635; }
+.card-bike .card-icon { background: rgba(234,179,8,0.15); color: #facc15; }
 
 .card-label {
     color: var(--muted);
@@ -777,6 +778,7 @@ body {
 .tag-other { background: rgba(168,85,247,0.15); color: #c084fc; }
 .tag-gym { background: rgba(239,68,68,0.15); color: #f87171; }
 .tag-trail { background: rgba(132,204,22,0.15); color: #a3e635; }
+.tag-bike { background: rgba(234,179,8,0.15); color: #facc15; }
 
 /* Athlete cards */
 .athlete-grid {

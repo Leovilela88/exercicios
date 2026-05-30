@@ -24,7 +24,7 @@ from strava_import import parse_strava_csv
 import achievements
 import stats
 
-SPORTS = ("corrida", "natacao", "musculacao", "trilha", "outro")
+SPORTS = ("corrida", "natacao", "musculacao", "trilha", "bike", "outro")
 
 
 def _init_db() -> None:
@@ -279,6 +279,10 @@ def dashboard(
         .filter(Workout.sport == "trilha").scalar() or 0.0,
         "trilha_sessoes": period_filter(db.query(func.count(Workout.id)))
         .filter(Workout.sport == "trilha").scalar() or 0,
+        "bike_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
+        .filter(Workout.sport == "bike").scalar() or 0.0,
+        "bike_sessoes": period_filter(db.query(func.count(Workout.id)))
+        .filter(Workout.sport == "bike").scalar() or 0,
         "calorias": period_filter(db.query(func.coalesce(func.sum(Workout.calories), 0.0))).scalar() or 0.0,
         "dias_ativos": period_filter(db.query(func.count(func.distinct(Workout.date)))).scalar() or 0,
         "total_treinos": period_filter(db.query(func.count(Workout.id))).scalar() or 0,
@@ -344,13 +348,16 @@ def dashboard(
         db.query(Workout.date, Workout.sport, Workout.distance_km, Workout.duration_min)
     ).filter(
         Workout.date >= start, Workout.date <= today,
-        Workout.sport.in_(["corrida", "natacao", "trilha", "musculacao"]),
+        Workout.sport.in_(["corrida", "natacao", "trilha", "bike", "musculacao"]),
     ).all()
     evo_labels = labels
     corrida_evo = [0.0] * len(labels)
     natacao_evo = [0.0] * len(labels)
     trilha_evo = [0.0] * len(labels)
+    bike_evo = [0.0] * len(labels)
     musculacao_evo = [0.0] * len(labels)  # em minutos
+    km_series = {"corrida": corrida_evo, "natacao": natacao_evo,
+                 "trilha": trilha_evo, "bike": bike_evo}
 
     def _bucket_idx(d: date) -> int:
         if bucket == "day":
@@ -368,19 +375,13 @@ def dashboard(
         if sport == "musculacao":
             if dur:
                 musculacao_evo[idx] += float(dur)
-        else:
-            if km:
-                if sport == "corrida":
-                    corrida_evo[idx] += float(km)
-                elif sport == "natacao":
-                    natacao_evo[idx] += float(km)
-                elif sport == "trilha":
-                    trilha_evo[idx] += float(km)
+        elif km and sport in km_series:
+            km_series[sport][idx] += float(km)
 
     breakdown_rows = aq(
         db.query(Workout.sport, func.count(Workout.id))
     ).filter(Workout.date >= start, Workout.date <= today).group_by(Workout.sport).all()
-    breakdown = {"corrida": 0, "natacao": 0, "musculacao": 0, "trilha": 0, "outro": 0}
+    breakdown = {"corrida": 0, "natacao": 0, "musculacao": 0, "trilha": 0, "bike": 0, "outro": 0}
     for sport, count in breakdown_rows:
         if sport in breakdown:
             breakdown[sport] = int(count)
@@ -428,6 +429,7 @@ def dashboard(
             "corrida_evo": corrida_evo,
             "natacao_evo": natacao_evo,
             "trilha_evo": trilha_evo,
+            "bike_evo": bike_evo,
             "musculacao_evo": musculacao_evo,
             "bucket": bucket,
             "breakdown": breakdown,
@@ -562,6 +564,33 @@ def delete_workout(
     return RedirectResponse(url=dest, status_code=303)
 
 
+_BIKE_HINTS = ("ride", "bike", "pedal", "cicl", "bicicl")
+
+
+@app.post("/admin/limpar-outro")
+def admin_clean_outro(request: Request, db: Session = Depends(get_db)):
+    """Reclassifica treinos 'outro' de ciclismo para 'bike' e remove o restante
+    de 'outro' do atleta ativo. Operação pontual de limpeza pós-import."""
+    athlete = get_active_athlete(request, db)
+    outros = db.query(Workout).filter(
+        Workout.athlete_id == athlete.id, Workout.sport == "outro"
+    ).all()
+    reclass, removed = 0, 0
+    for w in outros:
+        note = (w.notes or "").lower()
+        if any(h in note for h in _BIKE_HINTS):
+            w.sport = "bike"
+            reclass += 1
+        else:
+            db.delete(w)
+            removed += 1
+    db.commit()
+    return RedirectResponse(
+        url=f"/treinos?cleaned_reclass={reclass}&cleaned_removed={removed}",
+        status_code=303,
+    )
+
+
 PAGE_SIZE = 25
 
 
@@ -570,6 +599,8 @@ def workouts_history(
     request: Request,
     sport: Optional[str] = None,
     page: int = 1,
+    cleaned_reclass: Optional[int] = None,
+    cleaned_removed: Optional[int] = None,
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
@@ -596,6 +627,8 @@ def workouts_history(
             "pages": pages,
             "sport": sport if sport in SPORTS else None,
             "sports": SPORTS,
+            "cleaned_reclass": cleaned_reclass,
+            "cleaned_removed": cleaned_removed,
         },
     )
 

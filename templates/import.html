@@ -25,6 +25,7 @@
             {% if result.by_sport.natacao %}<li>Natação: {{ result.by_sport.natacao }}</li>{% endif %}
             {% if result.by_sport.musculacao %}<li>Musculação: {{ result.by_sport.musculacao }}</li>{% endif %}
             {% if result.by_sport.trilha %}<li>Trilha: {{ result.by_sport.trilha }}</li>{% endif %}
+            {% if result.by_sport.bike %}<li>Bike: {{ result.by_sport.bike }}</li>{% endif %}
             {% if result.by_sport.outro %}<li>Outro: {{ result.by_sport.outro }}</li>{% endif %}
             {% if result.skipped_dup %}<li class="muted">{{ result.skipped_dup }} duplicado{{ 's' if result.skipped_dup != 1 else '' }} ignorado{{ 's' if result.skipped_dup != 1 else '' }}</li>{% endif %}
             {% if result.skipped_bad %}<li class="muted">{{ result.skipped_bad }} linha{{ 's' if result.skipped_bad != 1 else '' }} com data inválida ignorada{{ 's' if result.skipped_bad != 1 else '' }}</li>{% endif %}

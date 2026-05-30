@@ -19,6 +19,23 @@
     {% endfor %}
 </div>
 
+{% if cleaned_reclass is not none or cleaned_removed is not none %}
+<div class="alert alert-success">
+    <strong>Limpeza concluída.</strong>
+    {{ cleaned_reclass or 0 }} reclassificado{{ 's' if (cleaned_reclass or 0) != 1 else '' }} como Bike ·
+    {{ cleaned_removed or 0 }} removido{{ 's' if (cleaned_removed or 0) != 1 else '' }}.
+</div>
+{% endif %}
+
+{% if sport == 'outro' and total > 0 %}
+<div class="alert alert-error">
+    Limpeza dos treinos "Outro": pedaladas (Ride/Bike) viram <strong>Bike</strong>; o restante é removido.
+    <form method="post" action="/admin/limpar-outro" onsubmit="return confirm('Reclassificar pedaladas como Bike e remover o restante de Outro?');" style="margin-top:10px;">
+        <button type="submit" class="btn-primary btn-small">Limpar treinos "Outro"</button>
+    </form>
+</div>
+{% endif %}
+
 <section class="recent">
     {% if rows %}
     <div class="table-wrap">
@@ -45,6 +62,7 @@
                     {% elif w.sport == 'natacao' %}<span class="tag tag-swim">Natação</span>
                     {% elif w.sport == 'musculacao' %}<span class="tag tag-gym">Musculação</span>
                     {% elif w.sport == 'trilha' %}<span class="tag tag-trail">Trilha</span>
+                    {% elif w.sport == 'bike' %}<span class="tag tag-bike">Bike</span>
                     {% else %}<span class="tag tag-other">Outro</span>{% endif %}
                 </td>
                 <td>{{ "%.2f km"|format(w.distance_km) if w.distance_km else "—" }}</td>

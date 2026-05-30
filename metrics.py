@@ -7,6 +7,7 @@ SPORT_LABELS = {
     "natacao": ("Natação", "tag-swim", "🏊"),
     "musculacao": ("Musculação", "tag-gym", "🏋️"),
     "trilha": ("Trilha", "tag-trail", "🥾"),
+    "bike": ("Bike", "tag-bike", "🚴"),
     "outro": ("Outro", "tag-other", "💪"),
 }
 
@@ -31,6 +32,10 @@ def pace(sport: str, distance_km: Optional[float], duration_min: Optional[float]
         secs_per_100 = (duration_min * 60.0) / hundreds
         m, s = divmod(int(round(secs_per_100)), 60)
         return f"{m}:{s:02d}/100m"
+
+    if sport == "bike":
+        kmh = distance_km / (duration_min / 60.0)
+        return f"{kmh:.1f} km/h"
 
     return None  # musculação / outro não têm pace
 

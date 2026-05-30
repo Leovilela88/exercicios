@@ -76,6 +76,16 @@ SPORT_MAP = {
     "caminhada": "trilha",
     "trekking": "trilha",
     "caminhadaaoarlivre": "trilha",
+    # bike / ciclismo (Ride, Mountain Bike, E-Bike, Virtual)
+    "ride": "bike",
+    "mountainbikeride": "bike",
+    "gravelride": "bike",
+    "ebikeride": "bike",
+    "virtualride": "bike",
+    "bike": "bike",
+    "pedal": "bike",
+    "pedalada": "bike",
+    "ciclismo": "bike",
 }
 
 
