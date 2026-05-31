@@ -297,6 +297,7 @@ def dashboard(
     # Streak permanece all-time (é uma métrica de "agora", não de período)
     all_dates = {stats._as_date(r[0]) for r in aq(db.query(Workout.date).distinct()).all()}
     streak = _current_streak(all_dates, today)
+    has_any_workout = bool(all_dates)
 
     range_rows = aq(
         db.query(
@@ -419,6 +420,7 @@ def dashboard(
             "athletes": get_all_athletes(db),
             "totals": totals,
             "streak": streak,
+            "has_any_workout": has_any_workout,
             "comparison": comparison,
             "records": records,
             "goals_progress": goals_progress,

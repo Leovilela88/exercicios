@@ -35,15 +35,63 @@
     {% endif %}
 {% endif %}
 
+<section class="panel-section">
+    <div class="section-head"><h2>Passo a passo</h2></div>
+    <div class="steps">
+        <div class="step">
+            <span class="step-num">1</span>
+            <div class="step-body">
+                <strong>Abra o Strava no navegador</strong>
+                <p>Acesse <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a> e faça login (no computador ou no navegador do celular — não funciona pelo app).</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span>
+            <div class="step-body">
+                <strong>Vá em "Baixar seus dados"</strong>
+                <p>Menu <strong>Configurações → Minha Conta → "Baixar ou Excluir Sua Conta"</strong>.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span>
+            <div class="step-body">
+                <strong>Solicite o arquivo</strong>
+                <p>Em <strong>"Baixar Solicitação (opcional)"</strong>, clique em <strong>"Solicitar seus Arquivos"</strong>.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">4</span>
+            <div class="step-body">
+                <strong>Espere o e-mail do Strava</strong>
+                <p>Pode levar de alguns minutos a algumas horas. Você recebe um link para baixar um arquivo <code>.zip</code>.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">5</span>
+            <div class="step-body">
+                <strong>Descompacte e pegue o <code>activities.csv</code></strong>
+                <p>Abra o <code>.zip</code> baixado e localize o arquivo <code>activities.csv</code> lá dentro.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">6</span>
+            <div class="step-body">
+                <strong>Suba o arquivo aqui embaixo</strong>
+                <p>Selecione o <code>activities.csv</code> no campo de upload e clique em Importar. Pronto!</p>
+            </div>
+        </div>
+    </div>
+</section>
+
 <form method="post" action="/importar" enctype="multipart/form-data" class="form" style="max-width: 640px;">
+    <h2 class="form-title">Subir o arquivo</h2>
     <label>
-        <span>Arquivo CSV do Strava</span>
+        <span>Arquivo <code>activities.csv</code> do Strava</span>
         <input type="file" name="file" accept=".csv,text/csv" required />
     </label>
     <p class="hint">
-        Os treinos serão atribuídos ao atleta ativo: <strong>{{ athlete.name }}</strong>.
-        Para importar para outra pessoa, troque o atleta no menu antes.
-        Duplicatas (mesma data + esporte + duração + distância) são automaticamente ignoradas, então pode rodar mais de uma vez sem medo.
+        Os treinos vão para o atleta ativo: <strong>{{ athlete.name }}</strong> (troque no menu se for de outra pessoa).
+        Duplicatas são ignoradas automaticamente — pode rodar mais de uma vez sem medo.
     </p>
     <div class="actions">
         <a href="/" class="btn-ghost">Voltar</a>
@@ -51,18 +99,7 @@
     </div>
 </form>
 
-<section class="help-box">
-    <h2>Como exportar do Strava</h2>
-    <ol>
-        <li>Entre no Strava no navegador (não funciona pelo app).</li>
-        <li>Vá em <strong>Configurações → Minha conta → Baixar ou excluir sua conta</strong>.</li>
-        <li>Clique em <em>"Obter início"</em> em <strong>Baixar solicitação (opcional)</strong>.</li>
-        <li>Você receberá um e-mail (pode levar algumas horas) com o link para um zip.</li>
-        <li>Dentro do zip, pegue o arquivo <code>activities.csv</code> e suba aqui.</li>
-    </ol>
-    <p class="hint">
-        Mapeamento de esportes: Run/Trail Run → corrida · Swim → natação · WeightTraining/Workout/CrossFit → musculação · resto → outro.
-        Quando o CSV não tem calorias para uma atividade, eu estimo via MET × peso × tempo usando o peso do atleta ativo.
-    </p>
-</section>
+<p class="hint" style="margin-top: 16px;">
+    O Strava traz corrida, natação, bike, trilha, caminhada e musculação. Quando o arquivo não tem calorias para uma atividade, o app estima a partir do peso do atleta.
+</p>
 {% endblock %}

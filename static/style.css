@@ -338,6 +338,71 @@ html, body { overflow-x: hidden; max-width: 100%; }
 }
 .card-foot strong { color: var(--text-2); font-weight: 600; }
 
+/* ---------- Onboarding: importar do Strava ---------- */
+.onboard-card {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    background: linear-gradient(135deg, rgba(59,130,246,0.14), rgba(168,85,247,0.08));
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 16px;
+    padding: 22px;
+    margin-bottom: 24px;
+}
+.onboard-icon {
+    width: 52px;
+    height: 52px;
+    flex-shrink: 0;
+    border-radius: 14px;
+    background: rgba(59,130,246,0.2);
+    color: #93c5fd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.onboard-icon svg { width: 26px; height: 26px; }
+.onboard-body h2 { margin: 0 0 6px; font-size: 1.15rem; }
+.onboard-body p { margin: 0 0 14px; color: var(--text-2); font-size: 0.92rem; line-height: 1.5; }
+
+/* Passo a passo (steps numerados) */
+.steps { display: flex; flex-direction: column; gap: 12px; }
+.step {
+    display: flex;
+    gap: 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px 16px;
+    box-shadow: var(--shadow);
+}
+.step-num {
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-weight: 700;
+    font-size: 0.95rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.step-body strong { display: block; color: var(--text); font-size: 0.95rem; margin-bottom: 3px; }
+.step-body p { margin: 0; color: var(--muted); font-size: 0.88rem; line-height: 1.5; }
+.step-body a { color: var(--accent); }
+.step-body code {
+    background: var(--panel-2);
+    padding: 1px 6px;
+    border-radius: 4px;
+    font-size: 0.85em;
+    color: var(--text-2);
+}
+
+@media (max-width: 640px) {
+    .onboard-card { flex-direction: column; text-align: center; }
+}
+
 /* ---------- Insights (coach) ---------- */
 .insights {
     display: grid;
