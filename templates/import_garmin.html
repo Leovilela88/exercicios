@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}Importar da Garmin - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Importar da Garmin</h1>
+        <p class="page-sub">Traga seu histórico do Garmin Connect para <strong>{{ athlete.name }}</strong>.</p>
+    </div>
+</header>
+
+{% if result %}
+    {% if result.error %}
+    <div class="alert alert-error"><strong>Não rolou:</strong> {{ result.error }}</div>
+    {% elif result.ok %}
+    <div class="alert alert-success">
+        <strong>{{ result.inserted }} treino{{ 's' if result.inserted != 1 else '' }} importado{{ 's' if result.inserted != 1 else '' }}</strong>
+        de <code>{{ result.filename }}</code> · {{ result.total_rows }} atividade{{ 's' if result.total_rows != 1 else '' }} no arquivo.
+        <ul class="result-list">
+            {% if result.by_sport.corrida %}<li>Corrida: {{ result.by_sport.corrida }}</li>{% endif %}
+            {% if result.by_sport.natacao %}<li>Natação: {{ result.by_sport.natacao }}</li>{% endif %}
+            {% if result.by_sport.bike %}<li>Bike: {{ result.by_sport.bike }}</li>{% endif %}
+            {% if result.by_sport.trilha %}<li>Trilha: {{ result.by_sport.trilha }}</li>{% endif %}
+            {% if result.by_sport.musculacao %}<li>Musculação: {{ result.by_sport.musculacao }}</li>{% endif %}
+            {% if result.by_sport.outro %}<li>Outro: {{ result.by_sport.outro }}</li>{% endif %}
+            {% if result.skipped_dup %}<li class="muted">{{ result.skipped_dup }} duplicado{{ 's' if result.skipped_dup != 1 else '' }} ignorado{{ 's' if result.skipped_dup != 1 else '' }}</li>{% endif %}
+            {% if result.skipped_bad %}<li class="muted">{{ result.skipped_bad }} sem data válida ignorada{{ 's' if result.skipped_bad != 1 else '' }}</li>{% endif %}
+        </ul>
+        <p style="margin: 12px 0 0;"><a href="/" class="btn-primary btn-small">Ver dashboard</a></p>
+        <p class="hint" style="margin-top: 10px;">Confira no dashboard se as distâncias e durações ficaram certas. Se algo veio estranho (ex: distância 100× maior), me avise que ajusto o conversor para o seu formato.</p>
+    </div>
+    {% endif %}
+{% endif %}
+
+<section class="panel-section">
+    <div class="section-head"><h2>Passo a passo</h2></div>
+    <div class="steps">
+        <div class="step">
+            <span class="step-num">1</span>
+            <div class="step-body">
+                <strong>Acesse sua conta Garmin no navegador</strong>
+                <p>Entre em <a href="https://www.garmin.com/account" target="_blank" rel="noopener">garmin.com/account</a> e faça login (no computador é mais fácil).</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span>
+            <div class="step-body">
+                <strong>Vá em "Exportar Seus Dados"</strong>
+                <p>No Centro de Gerenciamento de Conta, procure <strong>"Exportar Seus Dados"</strong> (ou "Export Your Data"). Link direto: <a href="https://www.garmin.com/account/datamanagement/exportdata/" target="_blank" rel="noopener">exportar dados</a>.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span>
+            <div class="step-body">
+                <strong>Solicite a exportação</strong>
+                <p>Clique em <strong>"Solicitar Exportação de Dados"</strong>. A Garmin prepara o arquivo e te envia um e-mail com o link (costuma levar de minutos a algumas horas).</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">4</span>
+            <div class="step-body">
+                <strong>Baixe e descompacte o <code>.zip</code></strong>
+                <p>Abra o link do e-mail, baixe o arquivo e descompacte.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">5</span>
+            <div class="step-body">
+                <strong>Encontre o <code>summarizedActivities.json</code></strong>
+                <p>Dentro das pastas (geralmente em <code>DI_CONNECT/DI-Connect-Fitness/</code>), procure o arquivo que termina em <code>_summarizedActivities.json</code>.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">6</span>
+            <div class="step-body">
+                <strong>Suba o arquivo aqui embaixo</strong>
+                <p>Selecione o <code>summarizedActivities.json</code> no campo abaixo e clique em Importar.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<form method="post" action="/importar/garmin" enctype="multipart/form-data" class="form" style="max-width: 640px;">
+    <h2 class="form-title">Subir o arquivo</h2>
+    <label>
+        <span>Arquivo <code>summarizedActivities.json</code> da Garmin</span>
+        <input type="file" name="file" accept=".json,application/json" required />
+    </label>
+    <p class="hint">
+        Os treinos vão para o atleta ativo: <strong>{{ athlete.name }}</strong>. Duplicatas são ignoradas — pode rodar mais de uma vez.
+    </p>
+    <div class="actions">
+        <a href="/" class="btn-ghost">Voltar</a>
+        <button type="submit" class="btn-primary">Importar treinos</button>
+    </div>
+</form>
+
+<p class="hint" style="margin-top: 16px;">
+    Já usa <strong>Strava</strong>? A Garmin também sincroniza com o Strava — nesse caso pode usar a <a href="/importar">importação do Strava</a>, que é a mesma coisa.
+</p>
+{% endblock %}

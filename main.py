@@ -1340,6 +1340,88 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
 
 # ------------- importar -------------
 
+def _insert_parsed_workouts(db: Session, athlete: Athlete, parsed_list):
+    """Insere treinos parseados (Strava/Garmin) com dedup por
+    (data, esporte, duração, distância). Retorna (inseridos, duplicados, by_sport)."""
+    existing = db.query(
+        Workout.date, Workout.sport, Workout.duration_min, Workout.distance_km
+    ).filter(Workout.athlete_id == athlete.id).all()
+
+    def key(d, sport, dur, dist):
+        return (d, sport,
+                round(dur, 0) if dur is not None else None,
+                round(dist, 2) if dist is not None else None)
+
+    existing_keys = {key(*row) for row in existing}
+    inserted, skipped_dup = 0, 0
+    by_sport: dict[str, int] = {}
+
+    for pw in parsed_list:
+        k = key(pw.date, pw.sport, pw.duration_min, pw.distance_km)
+        if k in existing_keys:
+            skipped_dup += 1
+            continue
+        cal = pw.calories
+        if cal is None:
+            cal = estimate_calories(pw.sport, athlete.weight_kg,
+                                    pw.distance_km, pw.duration_min)
+        db.add(Workout(
+            athlete_id=athlete.id, date=pw.date, sport=pw.sport,
+            distance_km=pw.distance_km, duration_min=pw.duration_min,
+            calories=cal, notes=pw.notes,
+        ))
+        existing_keys.add(k)
+        inserted += 1
+        by_sport[pw.sport] = by_sport.get(pw.sport, 0) + 1
+
+    db.commit()
+    return inserted, skipped_dup, by_sport
+
+
+@app.get("/importar/garmin", response_class=HTMLResponse)
+def garmin_import_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    return templates.TemplateResponse(
+        "import_garmin.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "result": None,
+        },
+    )
+
+
+@app.post("/importar/garmin", response_class=HTMLResponse)
+async def garmin_import_upload(
+    request: Request, file: UploadFile = File(...), db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    content = await file.read()
+    ctx = {"request": request, "athlete": athlete, "athletes": get_all_athletes(db)}
+
+    if len(content) > 25 * 1024 * 1024:  # 25 MB
+        ctx["result"] = {"error": "Arquivo maior que 25 MB. Suba o summarizedActivities.json."}
+        return templates.TemplateResponse("import_garmin.html", ctx)
+
+    from garmin_import import parse_garmin_json
+    parsed = parse_garmin_json(content)
+    if not parsed.ok or parsed.total_rows == 0:
+        ctx["result"] = {
+            "error": ("Não consegui ler as atividades. Confirme que é o arquivo "
+                      "summarizedActivities.json do export da Garmin (não o .zip inteiro)."),
+        }
+        return templates.TemplateResponse("import_garmin.html", ctx)
+
+    inserted, skipped_dup, by_sport = _insert_parsed_workouts(db, athlete, parsed.parsed)
+    ctx["result"] = {
+        "ok": True, "filename": file.filename, "total_rows": parsed.total_rows,
+        "inserted": inserted, "skipped_dup": skipped_dup,
+        "skipped_bad": parsed.skipped_bad_row, "by_sport": by_sport,
+    }
+    return templates.TemplateResponse("import_garmin.html", ctx)
+
+
 @app.get("/importar", response_class=HTMLResponse)
 def import_page(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
@@ -1384,50 +1466,7 @@ async def import_upload(
              "athletes": get_all_athletes(db), "result": result},
         )
 
-    # Dedup: chave (date, sport, duração arredondada, distância arredondada)
-    existing = db.query(
-        Workout.date, Workout.sport, Workout.duration_min, Workout.distance_km
-    ).filter(Workout.athlete_id == athlete.id).all()
-
-    def key(d, sport, dur, dist):
-        return (
-            d,
-            sport,
-            round(dur, 0) if dur is not None else None,
-            round(dist, 2) if dist is not None else None,
-        )
-
-    existing_keys = {key(*row) for row in existing}
-
-    inserted = 0
-    skipped_dup = 0
-    by_sport: dict[str, int] = {}
-
-    for pw in parsed.parsed:
-        k = key(pw.date, pw.sport, pw.duration_min, pw.distance_km)
-        if k in existing_keys:
-            skipped_dup += 1
-            continue
-
-        cal = pw.calories
-        if cal is None:
-            cal = estimate_calories(pw.sport, athlete.weight_kg,
-                                    pw.distance_km, pw.duration_min)
-
-        db.add(Workout(
-            athlete_id=athlete.id,
-            date=pw.date,
-            sport=pw.sport,
-            distance_km=pw.distance_km,
-            duration_min=pw.duration_min,
-            calories=cal,
-            notes=pw.notes,
-        ))
-        existing_keys.add(k)
-        inserted += 1
-        by_sport[pw.sport] = by_sport.get(pw.sport, 0) + 1
-
-    db.commit()
+    inserted, skipped_dup, by_sport = _insert_parsed_workouts(db, athlete, parsed.parsed)
 
     result = {
         "ok": True,
