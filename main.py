@@ -19,7 +19,8 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label
-from models import Athlete, ExerciseEntry, Goal, Settings, WeightLog, Workout
+from models import (Athlete, ExerciseEntry, Goal, Routine, RoutineItem,
+                    Settings, WeightLog, Workout)
 from strava_import import parse_strava_csv
 import achievements
 import stats
@@ -576,6 +577,10 @@ def workout_detail(request: Request, workout_id: int, db: Session = Depends(get_
         .distinct().all()
     )
     exercise_names = sorted({n for (n,) in used})
+    routines = (
+        db.query(Routine).filter(Routine.athlete_id == athlete.id)
+        .order_by(Routine.name).all()
+    ) if w.sport == "musculacao" else []
     return templates.TemplateResponse(
         "workout_detail.html",
         {
@@ -586,6 +591,7 @@ def workout_detail(request: Request, workout_id: int, db: Session = Depends(get_
             "exercises": exercises,
             "volume": volume,
             "exercise_names": exercise_names,
+            "routines": routines,
             "pace": pace(w.sport, w.distance_km, w.duration_min),
         },
     )
@@ -636,6 +642,125 @@ def delete_exercise(request: Request, entry_id: int, db: Session = Depends(get_d
         db.delete(e)
         db.commit()
     return RedirectResponse(url=f"/treino/{wid}" if wid else "/treinos", status_code=303)
+
+
+@app.get("/api/exercicio-hist")
+def api_exercise_history(request: Request, name: str, db: Session = Depends(get_db)):
+    """Histórico de um exercício (para progressão de carga)."""
+    athlete = get_active_athlete(request, db)
+    rows = (
+        db.query(ExerciseEntry, Workout.date)
+        .join(Workout, ExerciseEntry.workout_id == Workout.id)
+        .filter(Workout.athlete_id == athlete.id,
+                func.lower(ExerciseEntry.name) == name.strip().lower())
+        .order_by(Workout.date.desc(), ExerciseEntry.id.desc())
+        .limit(6).all()
+    )
+    items = [{
+        "date": stats._as_date(d).strftime("%d/%m/%y"),
+        "sets": e.sets, "reps": e.reps, "weight": e.weight_kg,
+    } for e, d in rows]
+    return JSONResponse({"items": items})
+
+
+# ------------- rotinas de treino -------------
+
+@app.get("/rotinas", response_class=HTMLResponse)
+def routines_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    routines = (
+        db.query(Routine).filter(Routine.athlete_id == athlete.id)
+        .order_by(Routine.name).all()
+    )
+    data = []
+    for r in routines:
+        exs = (
+            db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
+            .order_by(RoutineItem.position, RoutineItem.id).all()
+        )
+        data.append({"r": r, "exs": exs})
+    return templates.TemplateResponse(
+        "routines.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "routines": data,
+        },
+    )
+
+
+@app.post("/rotinas/{routine_id}/delete")
+def routine_delete(request: Request, routine_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    r = db.query(Routine).filter(
+        Routine.id == routine_id, Routine.athlete_id == athlete.id
+    ).first()
+    if r:
+        db.query(RoutineItem).filter(RoutineItem.routine_id == r.id).delete(
+            synchronize_session=False)
+        db.delete(r)
+        db.commit()
+    return RedirectResponse(url="/rotinas", status_code=303)
+
+
+@app.post("/treino/{workout_id}/salvar-rotina")
+def save_as_routine(
+    request: Request, workout_id: int,
+    name: str = Form(...), db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    w = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.athlete_id == athlete.id
+    ).first()
+    if w and name.strip():
+        exercises = (
+            db.query(ExerciseEntry).filter(ExerciseEntry.workout_id == w.id)
+            .order_by(ExerciseEntry.position, ExerciseEntry.id).all()
+        )
+        if exercises:
+            r = Routine(athlete_id=athlete.id, name=name.strip()[:100])
+            db.add(r)
+            db.flush()
+            for e in exercises:
+                db.add(RoutineItem(
+                    routine_id=r.id, name=e.name, sets=e.sets,
+                    reps=e.reps, weight_kg=e.weight_kg, position=e.position,
+                ))
+            db.commit()
+    return RedirectResponse(url=f"/treino/{workout_id}", status_code=303)
+
+
+@app.post("/treino/{workout_id}/carregar-rotina")
+def load_routine(
+    request: Request, workout_id: int,
+    routine_id: str = Form(...), db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    w = db.query(Workout).filter(
+        Workout.id == workout_id, Workout.athlete_id == athlete.id
+    ).first()
+    rid = _to_int(routine_id)
+    r = db.query(Routine).filter(
+        Routine.id == rid, Routine.athlete_id == athlete.id
+    ).first() if rid else None
+    if w and r:
+        last_pos = (
+            db.query(func.coalesce(func.max(ExerciseEntry.position), -1))
+            .filter(ExerciseEntry.workout_id == w.id).scalar()
+        ) or -1
+        items = (
+            db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
+            .order_by(RoutineItem.position, RoutineItem.id).all()
+        )
+        for it in items:
+            last_pos += 1
+            db.add(ExerciseEntry(
+                workout_id=w.id, name=it.name, sets=it.sets,
+                reps=it.reps, weight_kg=it.weight_kg, position=last_pos,
+            ))
+        db.commit()
+    return RedirectResponse(url=f"/treino/{workout_id}", status_code=303)
 
 
 @app.post("/delete/{workout_id}")

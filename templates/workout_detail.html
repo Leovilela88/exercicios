@@ -32,6 +32,25 @@
 {% endif %}
 
 {% if w.sport == 'musculacao' %}
+<section class="routine-bar">
+    {% if routines %}
+    <form method="post" action="/treino/{{ w.id }}/carregar-rotina" class="routine-load">
+        <select name="routine_id" required>
+            <option value="" disabled selected>Carregar uma rotina…</option>
+            {% for r in routines %}<option value="{{ r.id }}">{{ r.name }}</option>{% endfor %}
+        </select>
+        <button type="submit" class="btn-ghost btn-small">Carregar</button>
+    </form>
+    {% endif %}
+    {% if exercises %}
+    <form method="post" action="/treino/{{ w.id }}/salvar-rotina" class="routine-save"
+          onsubmit="return !!this.name.value.trim();">
+        <input type="text" name="name" maxlength="100" placeholder="Salvar como rotina (nome)" />
+        <button type="submit" class="btn-ghost btn-small">Salvar rotina</button>
+    </form>
+    {% endif %}
+</section>
+
 <section class="recent" style="margin-bottom: 24px;">
     <div class="section-head"><h2>Exercícios</h2></div>
     {% if exercises %}
@@ -68,23 +87,24 @@
     <form method="post" action="/treino/{{ w.id }}/exercicio">
         <label>
             <span>Exercício</span>
-            <input type="text" name="name" list="exercise-names" required maxlength="100" placeholder="ex: Supino inclinado" autocomplete="off" />
+            <input type="text" name="name" id="ex-name" list="exercise-names" required maxlength="100" placeholder="ex: Supino inclinado" autocomplete="off" />
             <datalist id="exercise-names">
                 {% for n in exercise_names %}<option value="{{ n }}"></option>{% endfor %}
             </datalist>
         </label>
+        <div class="progress-hint" id="progress-hint" hidden></div>
         <div class="row">
             <label>
                 <span>Séries</span>
-                <input type="number" step="1" min="1" max="50" name="sets" placeholder="ex: 4" />
+                <input type="number" step="1" min="1" max="50" name="sets" id="ex-sets" placeholder="ex: 4" />
             </label>
             <label>
                 <span>Repetições</span>
-                <input type="number" step="1" min="1" max="200" name="reps" placeholder="ex: 10" />
+                <input type="number" step="1" min="1" max="200" name="reps" id="ex-reps" placeholder="ex: 10" />
             </label>
             <label>
                 <span>Carga (kg)</span>
-                <input type="number" step="0.5" min="0" name="weight_kg" placeholder="ex: 40" />
+                <input type="number" step="0.5" min="0" name="weight_kg" id="ex-weight" placeholder="ex: 40" />
             </label>
         </div>
         <div class="actions">
@@ -93,6 +113,45 @@
         </div>
     </form>
 </section>
+
+<script>
+    (function () {
+        const name = document.getElementById('ex-name');
+        const hint = document.getElementById('progress-hint');
+        const setsEl = document.getElementById('ex-sets');
+        const repsEl = document.getElementById('ex-reps');
+        const wEl = document.getElementById('ex-weight');
+        if (!name) return;
+        let timer = null;
+
+        async function lookup() {
+            const q = name.value.trim();
+            if (q.length < 2) { hint.hidden = true; return; }
+            try {
+                const r = await fetch('/api/exercicio-hist?name=' + encodeURIComponent(q));
+                const j = await r.json();
+                if (!j.items.length) { hint.hidden = true; return; }
+                const last = j.items[0];
+                const parts = [];
+                if (last.sets) parts.push(last.sets + '×' + (last.reps || '?'));
+                if (last.weight) parts.push(last.weight + ' kg');
+                hint.innerHTML = '<strong>Última vez (' + last.date + '):</strong> ' +
+                    (parts.join(' · ') || 'sem dados') +
+                    ' <button type="button" class="hint-fill">usar</button>';
+                hint.hidden = false;
+                const fill = hint.querySelector('.hint-fill');
+                if (fill) fill.addEventListener('click', () => {
+                    if (last.sets) setsEl.value = last.sets;
+                    if (last.reps) repsEl.value = last.reps;
+                    if (last.weight) wEl.value = last.weight;
+                });
+            } catch (_) { hint.hidden = true; }
+        }
+        function debounce() { clearTimeout(timer); timer = setTimeout(lookup, 250); }
+        name.addEventListener('input', debounce);
+        name.addEventListener('change', lookup);
+    })();
+</script>
 {% else %}
 <a href="/treinos" class="btn-ghost">Voltar aos treinos</a>
 {% endif %}

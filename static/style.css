@@ -1416,6 +1416,87 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 }
 .ex-count:hover { background: rgba(239,68,68,0.25); }
 
+/* Barra de rotinas no detalhe do treino */
+.routine-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 16px;
+}
+.routine-bar form { display: flex; gap: 6px; margin: 0; flex: 1 1 240px; }
+.routine-bar select, .routine-bar input {
+    flex: 1;
+    min-width: 0;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 8px 10px;
+    font: inherit;
+    font-size: 0.9rem;
+}
+
+/* Dica de progressão (última vez) */
+.progress-hint {
+    background: rgba(59,130,246,0.10);
+    border: 1px solid rgba(59,130,246,0.25);
+    color: #93c5fd;
+    border-radius: 8px;
+    padding: 8px 12px;
+    font-size: 0.85rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.progress-hint strong { color: #bfdbfe; }
+.hint-fill {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 3px 10px;
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* Cards de rotina */
+.routine-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 16px;
+}
+.routine-card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    box-shadow: var(--shadow);
+}
+.routine-card > header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+.routine-card h3 { margin: 0; font-size: 1.05rem; font-weight: 600; }
+.routine-card > header form { margin: 0; }
+.routine-items { list-style: none; margin: 0; padding: 0; }
+.routine-items li {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 8px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.9rem;
+}
+.routine-items li:last-child { border-bottom: none; }
+.ri-name { color: var(--text); }
+.ri-meta { color: var(--muted); font-size: 0.82rem; white-space: nowrap; }
+
 
 /* Paginação */
 .pagination {
