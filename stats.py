@@ -6,7 +6,7 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from metrics import pace, sport_label
+from metrics import SPORT_LABELS, pace, sport_label
 from models import Workout
 
 # Metas: rótulos e unidades por métrica
@@ -230,13 +230,27 @@ def monthly_calendars(db: Session, athlete_id: int, today: date, months: int = 3
     ym.reverse()
 
     start = date(ym[0][0], ym[0][1], 1)
-    rows = (
-        db.query(Workout.date, func.count(Workout.id))
+    # Treinos do período, para contagem e para o detalhe ao clicar no dia
+    wk_rows = (
+        db.query(Workout.date, Workout.sport, Workout.distance_km,
+                 Workout.duration_min, Workout.calories)
         .filter(Workout.athlete_id == athlete_id,
                 Workout.date >= start, Workout.date <= today)
-        .group_by(Workout.date).all()
+        .order_by(Workout.date, Workout.id).all()
     )
-    counts = {_as_date(d): int(c) for d, c in rows}
+    counts: dict[date, int] = {}
+    day_workouts: dict[str, list] = {}
+    for d, sport, dist, dur, cal_ in wk_rows:
+        dd = _as_date(d)
+        counts[dd] = counts.get(dd, 0) + 1
+        label, tag, _icon = SPORT_LABELS.get(sport, SPORT_LABELS["outro"])
+        day_workouts.setdefault(dd.isoformat(), []).append({
+            "sport": label,
+            "tag": tag,
+            "dist": round(dist, 2) if dist else None,
+            "dur": round(dur) if dur else None,
+            "cal": round(cal_) if cal_ else None,
+        })
 
     cal = calendar.Calendar(firstweekday=6)  # 6 = domingo como 1ª coluna
     out_months = []
@@ -251,6 +265,7 @@ def monthly_calendars(db: Session, athlete_id: int, today: date, months: int = 3
                 n = counts.get(d, 0)
                 cells.append({
                     "day": d.day, "count": n, "level": _level(n),
+                    "iso": d.isoformat(),
                     "is_today": d == today, "is_future": d > today,
                 })
             weeks.append(cells)
@@ -267,6 +282,7 @@ def monthly_calendars(db: Session, athlete_id: int, today: date, months: int = 3
         "total": total,
         "active_days": active_days,
         "n_months": months,
+        "day_workouts": day_workouts,
     }
 
 

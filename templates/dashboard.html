@@ -275,8 +275,13 @@
                 {% for week in month.weeks %}
                 {% for cell in week %}
                 {% if cell %}
-                <span class="cal-day cal-l{{ cell.level }} {% if cell.is_today %}cal-today{% endif %} {% if cell.is_future %}cal-future{% endif %}"
-                      title="{% if cell.count %}{{ cell.count }} treino{{ 's' if cell.count != 1 else '' }}{% else %}sem treino{% endif %}">{{ cell.day }}</span>
+                {% if cell.count %}
+                <button type="button" class="cal-day cal-l{{ cell.level }} cal-has {% if cell.is_today %}cal-today{% endif %}"
+                        data-date="{{ cell.iso }}"
+                        title="{{ cell.count }} treino{{ 's' if cell.count != 1 else '' }} — toque para ver">{{ cell.day }}</button>
+                {% else %}
+                <span class="cal-day cal-l0 {% if cell.is_today %}cal-today{% endif %} {% if cell.is_future %}cal-future{% endif %}">{{ cell.day }}</span>
+                {% endif %}
                 {% else %}
                 <span class="cal-day cal-blank"></span>
                 {% endif %}
@@ -297,6 +302,57 @@
         </span>
     </div>
 </section>
+
+{# Janela com os treinos do dia (aberta ao clicar numa data) #}
+<div class="day-modal" id="day-modal" hidden>
+    <div class="day-modal-box">
+        <button class="modal-close" id="day-close" aria-label="Fechar">&times;</button>
+        <h3 id="day-modal-title">Treinos</h3>
+        <div id="day-modal-list"></div>
+    </div>
+</div>
+
+<script>
+    (function () {
+        const dayWorkouts = {{ calendars.day_workouts|tojson }};
+        const modal = document.getElementById('day-modal');
+        const title = document.getElementById('day-modal-title');
+        const list = document.getElementById('day-modal-list');
+        const closeBtn = document.getElementById('day-close');
+        if (!modal) return;
+
+        function fmtDate(iso) {
+            const [y, m, d] = iso.split('-');
+            return `${d}/${m}/${y}`;
+        }
+        function row(w) {
+            const parts = [];
+            if (w.dist != null) parts.push(w.dist.toFixed(2) + ' km');
+            if (w.dur != null) parts.push(w.dur + ' min');
+            if (w.cal != null) parts.push(w.cal + ' kcal');
+            const info = parts.length ? parts.join(' · ') : '—';
+            return `<div class="day-item">
+                <span class="tag ${w.tag}">${w.sport}</span>
+                <span class="day-item-info">${info}</span>
+            </div>`;
+        }
+        function open(iso) {
+            const items = dayWorkouts[iso] || [];
+            title.textContent = 'Treinos de ' + fmtDate(iso);
+            list.innerHTML = items.length
+                ? items.map(row).join('')
+                : '<p class="empty">Sem treinos neste dia.</p>';
+            modal.hidden = false;
+        }
+        function close() { modal.hidden = true; }
+
+        document.querySelectorAll('.cal-day[data-date]').forEach((el) => {
+            el.addEventListener('click', () => open(el.dataset.date));
+        });
+        closeBtn.addEventListener('click', close);
+        modal.addEventListener('click', (e) => { if (e.target === modal) close(); });
+    })();
+</script>
 
 <section class="charts-grid">
     {% set range_label_map = dict(range_options) %}

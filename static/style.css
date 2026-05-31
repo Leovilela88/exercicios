@@ -657,6 +657,62 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .cal-l4 { background: #2563eb; color: #fff; font-weight: 600; }
 .cal-future { opacity: 0.35; }
 .cal-today { outline: 2px solid var(--accent); outline-offset: 1px; font-weight: 700; }
+/* botão de dia com treino (clicável) */
+button.cal-day {
+    border: none;
+    font: inherit;
+    cursor: pointer;
+}
+.cal-has { cursor: pointer; transition: transform .1s, filter .15s; }
+.cal-has:hover { filter: brightness(1.2); }
+.cal-has:active { transform: scale(0.92); }
+
+/* Janela com treinos do dia */
+.day-modal {
+    position: fixed;
+    inset: 0;
+    z-index: 80;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(2px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+}
+.day-modal[hidden] { display: none; }
+.day-modal-box {
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 16px;
+    padding: 22px;
+    max-width: 380px;
+    width: 100%;
+    position: relative;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+}
+.day-modal-box h3 { margin: 0 0 14px; font-size: 1.1rem; padding-right: 24px; }
+.day-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 11px 0;
+    border-bottom: 1px solid var(--border);
+}
+.day-item:last-child { border-bottom: none; }
+.day-item-info { color: var(--text-2); font-size: 0.9rem; text-align: right; }
+.modal-close {
+    position: absolute;
+    top: 12px;
+    right: 14px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1.8rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.modal-close:hover { color: var(--text); }
 .cal-legend {
     display: flex;
     align-items: center;
