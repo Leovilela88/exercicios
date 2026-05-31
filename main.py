@@ -665,29 +665,89 @@ def api_exercise_history(request: Request, name: str, db: Session = Depends(get_
 
 # ------------- rotinas de treino -------------
 
-@app.get("/rotinas", response_class=HTMLResponse)
-def routines_page(request: Request, db: Session = Depends(get_db)):
+@app.get("/musculacao", response_class=HTMLResponse)
+def strength_hub(request: Request, db: Session = Depends(get_db)):
+    """Hub da musculação: rotinas (o treino a fazer) + treinos recentes."""
     athlete = get_active_athlete(request, db)
     routines = (
         db.query(Routine).filter(Routine.athlete_id == athlete.id)
         .order_by(Routine.name).all()
     )
-    data = []
+    rdata = []
     for r in routines:
         exs = (
             db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
             .order_by(RoutineItem.position, RoutineItem.id).all()
         )
-        data.append({"r": r, "exs": exs})
+        rdata.append({"r": r, "exs": exs})
+
+    recent_q = (
+        db.query(Workout)
+        .filter(Workout.athlete_id == athlete.id, Workout.sport == "musculacao")
+        .order_by(Workout.date.desc(), Workout.id.desc()).limit(8).all()
+    )
+    ids = [w.id for w in recent_q]
+    entries = (
+        db.query(ExerciseEntry).filter(ExerciseEntry.workout_id.in_(ids)).all()
+        if ids else []
+    )
+    by_w: dict[int, list] = {}
+    for e in entries:
+        by_w.setdefault(e.workout_id, []).append(e)
+    recent = []
+    for w in recent_q:
+        es = by_w.get(w.id, [])
+        vol = sum((e.sets or 0) * (e.reps or 0) * (e.weight_kg or 0) for e in es)
+        recent.append({"w": w, "count": len(es), "volume": vol})
+
     return templates.TemplateResponse(
-        "routines.html",
+        "strength.html",
         {
             "request": request,
             "athlete": athlete,
             "athletes": get_all_athletes(db),
-            "routines": data,
+            "routines": rdata,
+            "recent": recent,
+            "today": date.today().isoformat(),
         },
     )
+
+
+@app.get("/rotinas")
+def routines_redirect():
+    return RedirectResponse(url="/musculacao", status_code=307)
+
+
+@app.post("/musculacao/iniciar")
+def start_routine_workout(
+    request: Request, routine_id: str = Form(...),
+    workout_date: str = Form(None), db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    rid = _to_int(routine_id)
+    r = db.query(Routine).filter(
+        Routine.id == rid, Routine.athlete_id == athlete.id
+    ).first() if rid else None
+    if not r:
+        return RedirectResponse(url="/musculacao", status_code=303)
+    try:
+        d = date.fromisoformat(workout_date) if workout_date else date.today()
+    except ValueError:
+        d = date.today()
+    w = Workout(athlete_id=athlete.id, date=d, sport="musculacao")
+    db.add(w)
+    db.flush()
+    items = (
+        db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
+        .order_by(RoutineItem.position, RoutineItem.id).all()
+    )
+    for it in items:
+        db.add(ExerciseEntry(
+            workout_id=w.id, name=it.name, sets=it.sets,
+            reps=it.reps, weight_kg=it.weight_kg, position=it.position,
+        ))
+    db.commit()
+    return RedirectResponse(url=f"/treino/{w.id}", status_code=303)
 
 
 @app.post("/rotinas/{routine_id}/delete")
