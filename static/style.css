@@ -64,18 +64,23 @@ body {
     text-decoration: none;
 }
 .brand svg { color: var(--accent); }
-.nav-links { display: flex; gap: 6px; align-items: center; }
+.nav-right { display: flex; align-items: center; gap: 12px; }
+.nav-links { display: flex; gap: 4px; align-items: center; }
 .nav-links a {
-    color: var(--muted);
+    color: var(--text-2);
     text-decoration: none;
     font-weight: 500;
-    font-size: 0.93rem;
-    padding: 7px 12px;
+    font-size: 0.9rem;
+    padding: 7px 11px;
     border-radius: 8px;
     transition: color .15s, background .15s;
 }
-.nav-links a:hover { color: var(--text); background: rgba(148, 163, 184, 0.06); }
-.nav-links a.active { color: var(--text); background: rgba(148, 163, 184, 0.08); }
+.nav-links a:hover { color: var(--text); background: rgba(148, 163, 184, 0.08); }
+.nav-links a.active {
+    color: #fff;
+    background: rgba(59, 130, 246, 0.18);
+    box-shadow: inset 0 0 0 1px rgba(59,130,246,0.35);
+}
 
 /* Athlete switcher dropdown */
 .athlete-switch { position: relative; }
@@ -1003,22 +1008,106 @@ input[type="file"]:hover { border-color: var(--accent); background: var(--panel-
     transition: opacity .15s;
 }
 
-/* ---------- Nav mobile ---------- */
+/* ---------- Nav ---------- */
 .nav-link { display: inline-flex; align-items: center; gap: 6px; }
 .nav-link .nav-icon { display: none; }
 .athlete-name { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .dropdown-name { display: inline-flex; align-items: center; gap: 8px; }
 
+/* Barra de navegação inferior (mobile) — escondida no desktop */
+.bottomnav { display: none; }
+.bn-item {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    background: none;
+    border: none;
+    color: var(--muted);
+    font: inherit;
+    font-size: 0.62rem;
+    font-weight: 500;
+    text-decoration: none;
+    padding: 4px 0;
+    cursor: pointer;
+}
+.bn-item svg { width: 22px; height: 22px; }
+.bn-item.active { color: var(--accent); }
+.bn-fab {
+    flex: 0 0 auto;
+    width: 52px;
+    height: 52px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-top: -20px;
+    box-shadow: 0 6px 18px rgba(59,130,246,0.5);
+    text-decoration: none;
+}
+.bn-fab svg { width: 26px; height: 26px; }
+
+/* Bottom sheet do menu "Mais" */
+.sheet-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 70;
+    background: rgba(0,0,0,0.55);
+    display: flex;
+    align-items: flex-end;
+}
+.sheet-overlay[hidden] { display: none; }
+.sheet {
+    width: 100%;
+    background: var(--panel);
+    border-radius: 18px 18px 0 0;
+    border-top: 1px solid var(--border-strong);
+    padding: 8px 16px calc(16px + env(safe-area-inset-bottom));
+    animation: sheetUp .18s ease;
+}
+@keyframes sheetUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+.sheet-handle {
+    width: 40px;
+    height: 4px;
+    border-radius: 100px;
+    background: var(--border-strong);
+    margin: 8px auto 12px;
+}
+.sheet-item {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 15px 8px;
+    color: var(--text-2);
+    text-decoration: none;
+    border-bottom: 1px solid var(--border);
+    font-size: 0.98rem;
+}
+.sheet-item:last-child { border-bottom: none; }
+.sheet-item svg { width: 20px; height: 20px; color: var(--muted); }
+.sheet-item:active { background: var(--panel-2); }
+
 @media (max-width: 720px) {
-    .container { padding: 22px 16px 80px; }
-    .nav-inner { padding: 10px 14px; flex-wrap: wrap; gap: 8px; }
-    .nav-links { gap: 4px; flex-wrap: wrap; justify-content: flex-end; }
-    .nav-link { padding: 7px 9px; }
-    .nav-link .nav-icon { display: inline-block; }
-    .nav-link .nav-label { display: none; }
-    .nav-links .btn-primary { padding: 7px 11px; }
-    .nav-links .btn-primary .nav-label { display: none; }
-    .athlete-name { max-width: 90px; }
+    .container { padding: 22px 16px 96px; }
+    .nav-inner { padding: 10px 14px; }
+    .nav-links { display: none; }       /* links migram para a barra inferior */
+    .bottomnav {
+        display: flex;
+        position: fixed;
+        bottom: 0; left: 0; right: 0;
+        z-index: 50;
+        background: rgba(5, 8, 16, 0.96);
+        backdrop-filter: saturate(160%) blur(14px);
+        -webkit-backdrop-filter: saturate(160%) blur(14px);
+        border-top: 1px solid var(--border);
+        padding: 6px 6px calc(6px + env(safe-area-inset-bottom));
+        align-items: center;
+        justify-content: space-around;
+    }
+    .athlete-name { max-width: 120px; }
 
     .page-header { flex-direction: column; align-items: flex-start; gap: 10px; }
     .page-title { font-size: 1.45rem; }
