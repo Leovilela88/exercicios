@@ -15,10 +15,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=23" />
+    <link rel="stylesheet" href="/static/style.css?v=24" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
+<canvas id="plexus" aria-hidden="true"></canvas>
 <nav class="nav">
     <div class="nav-inner">
         <a href="/" class="brand">
@@ -169,6 +170,60 @@
         if (!btn || !sheet) return;
         btn.addEventListener('click', () => { sheet.hidden = false; });
         sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.hidden = true; });
+    })();
+
+    // Fundo plexus neon — sutil e leve (pausa quando a aba não está visível)
+    (function () {
+        const canvas = document.getElementById('plexus');
+        if (!canvas) return;
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const ctx = canvas.getContext('2d');
+        let w, h, pts, raf, running = false;
+        const COUNT = 42, MAXD = 150;
+
+        function resize() {
+            w = canvas.width = window.innerWidth;
+            h = canvas.height = window.innerHeight;
+        }
+        function init() {
+            pts = Array.from({ length: COUNT }, () => ({
+                x: Math.random() * w, y: Math.random() * h,
+                vx: (Math.random() - 0.5) * 0.28, vy: (Math.random() - 0.5) * 0.28,
+            }));
+        }
+        function frame() {
+            ctx.clearRect(0, 0, w, h);
+            for (const p of pts) {
+                p.x += p.vx; p.y += p.vy;
+                if (p.x < 0 || p.x > w) p.vx *= -1;
+                if (p.y < 0 || p.y > h) p.vy *= -1;
+            }
+            for (let i = 0; i < pts.length; i++) {
+                for (let j = i + 1; j < pts.length; j++) {
+                    const a = pts[i], b = pts[j];
+                    const dx = a.x - b.x, dy = a.y - b.y;
+                    const d = Math.hypot(dx, dy);
+                    if (d < MAXD) {
+                        ctx.strokeStyle = 'rgba(59,130,246,' + (1 - d / MAXD) * 0.16 + ')';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+                    }
+                }
+            }
+            for (const p of pts) {
+                ctx.fillStyle = 'rgba(96,165,250,0.45)';
+                ctx.beginPath(); ctx.arc(p.x, p.y, 1.4, 0, Math.PI * 2); ctx.fill();
+            }
+            raf = requestAnimationFrame(frame);
+        }
+        function start() { if (!running) { running = true; frame(); } }
+        function stop() { running = false; cancelAnimationFrame(raf); }
+
+        resize(); init(); start();
+        window.addEventListener('resize', () => { resize(); init(); });
+        document.addEventListener('visibilitychange', () => {
+            document.hidden ? stop() : start();
+        });
     })();
 </script>
 </body>

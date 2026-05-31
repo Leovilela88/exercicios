@@ -37,6 +37,15 @@ body {
 /* Evita vazamento horizontal da página (scroll lateral indesejado) */
 html, body { overflow-x: hidden; max-width: 100%; }
 
+/* Fundo plexus neon: atrás de tudo, sutil, não interativo */
+#plexus {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    opacity: 0.55;
+}
+
 /* Itens de grid/flex encolhem corretamente (sem forçar overflow pelo conteúdo) */
 .chart-box, .card, .compare-box, .goal-mini, .record-card, .badge-card,
 .cards > *, .charts-grid > *, .compare-grid > *, .records-grid > *,
@@ -244,6 +253,16 @@ html, body { overflow-x: hidden; max-width: 100%; }
     color: var(--text);
     background: var(--panel-hover);
     box-shadow: inset 0 0 0 1px var(--border-strong);
+}
+.range-tab .rt-short { display: none; }
+
+/* Barra de períodos que cabe sem rolagem (distribui igualmente) */
+.range-tabs-fit { display: flex; width: 100%; }
+.range-tabs-fit .range-tab {
+    flex: 1 1 0;
+    min-width: 0;
+    text-align: center;
+    padding: 7px 6px;
 }
 
 /* ---------- Stat cards ---------- */
@@ -1139,9 +1158,15 @@ input[type="file"]:hover { border-color: var(--accent); background: var(--panel-
     .table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
     .tbl { font-size: 0.82rem; min-width: 460px; }
 
-    /* Range tabs scrollable */
+    /* Range tabs scrollable (filtro de esporte no histórico) */
     .range-tabs { width: 100%; }
     .range-tab { padding: 6px 11px; font-size: 0.82rem; }
+
+    /* Barra de períodos: rótulos curtos, tudo cabe sem rolar */
+    .range-tabs-fit { overflow-x: visible; }
+    .range-tabs-fit .range-tab { padding: 7px 2px; font-size: 0.74rem; }
+    .range-tabs-fit .rt-long { display: none; }
+    .range-tabs-fit .rt-short { display: inline; }
 }
 
 @media (max-width: 420px) {

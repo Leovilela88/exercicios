@@ -192,6 +192,11 @@ RANGE_OPTIONS = [
     ("ytd", "No ano"),
     ("all", "Total"),
 ]
+# Rótulos curtos para a barra de períodos no celular (cabem sem rolagem)
+RANGE_SHORT = {
+    "1w": "1sem", "1m": "1mês", "3m": "3m", "6m": "6m",
+    "1y": "1ano", "ytd": "ano", "all": "tudo",
+}
 
 
 def _resolve_range(
@@ -436,6 +441,7 @@ def dashboard(
             "recent": recent,
             "today": today.isoformat(),
             "range_options": RANGE_OPTIONS,
+            "range_short": RANGE_SHORT,
             "range_key": range_key,
         },
     )

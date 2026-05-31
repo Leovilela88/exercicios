@@ -24,9 +24,12 @@
 </section>
 {% endif %}
 
-<div class="range-tabs" role="tablist" aria-label="Período dos gráficos">
+<div class="range-tabs range-tabs-fit" role="tablist" aria-label="Período dos gráficos">
     {% for key, label in range_options %}
-    <a href="/?range={{ key }}" class="range-tab {% if range_key == key %}active{% endif %}" role="tab">{{ label }}</a>
+    <a href="/?range={{ key }}" class="range-tab {% if range_key == key %}active{% endif %}" role="tab">
+        <span class="rt-long">{{ label }}</span>
+        <span class="rt-short">{{ range_short[key] }}</span>
+    </a>
     {% endfor %}
 </div>
 
