@@ -1,7 +1,7 @@
 {
-  "name": "Exercícios",
-  "short_name": "Exercícios",
-  "description": "Controle pessoal de corrida, natação, musculação e trilha",
+  "name": "MultiFit",
+  "short_name": "MultiFit",
+  "description": "MultiFit — atividades físicas unificadas: corrida, natação, musculação, trilha e bike",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

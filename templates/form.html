@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}{{ "Editar treino" if workout else "Novo treino" }} - Exercícios{% endblock %}
+{% block title %}{{ "Editar treino" if workout else "Novo treino" }} - MultiFit{% endblock %}
 {% block content %}
 {% set dist_m = (workout.distance_km * 1000)|round|int if workout and workout.distance_km else '' %}
 <header class="page-header">

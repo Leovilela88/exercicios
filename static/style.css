@@ -85,6 +85,7 @@ html, body { overflow-x: hidden; max-width: 100%; }
     text-decoration: none;
 }
 .brand svg { color: var(--accent); }
+.brand-logo { height: 28px; width: auto; display: block; }
 .nav-right { display: flex; align-items: center; gap: 12px; }
 .nav-links { display: flex; gap: 4px; align-items: center; }
 .nav-links a {
