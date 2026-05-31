@@ -1180,6 +1180,16 @@ input[type="file"]:hover { border-color: var(--accent); background: var(--panel-
 .sheet-item:last-child { border-bottom: none; }
 .sheet-item svg { width: 20px; height: 20px; color: var(--muted); }
 .sheet-item:active { background: var(--panel-2); }
+.sheet-item-primary {
+    background: rgba(59,130,246,0.12);
+    border: 1px solid rgba(59,130,246,0.3);
+    border-radius: 10px;
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 6px;
+    padding: 14px 12px;
+}
+.sheet-item-primary svg { color: var(--accent); }
 
 @media (max-width: 720px) {
     .container { padding: 22px 16px 96px; }

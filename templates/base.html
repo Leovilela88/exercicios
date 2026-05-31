@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=26" />
+    <link rel="stylesheet" href="/static/style.css?v=27" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -121,9 +121,9 @@
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
         <span>Metas</span>
     </a>
-    <a href="/novo" class="bn-fab" title="Novo treino" aria-label="Novo treino">
+    <button type="button" class="bn-fab" id="add-btn" aria-label="Adicionar">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
-    </a>
+    </button>
     <a href="/conquistas" class="bn-item {% if request.url.path == '/conquistas' %}active{% endif %}">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6m12 5h1.5a2.5 2.5 0 0 0 0-5H18M4 22h16M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>
         <span>Troféus</span>
@@ -160,6 +160,25 @@
         </a>
     </div>
 </div>
+
+{# Menu de ações do botão "+" #}
+<div class="sheet-overlay" id="add-sheet" hidden>
+    <div class="sheet">
+        <div class="sheet-handle"></div>
+        <a href="/novo" class="sheet-item sheet-item-primary">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg>
+            Novo treino
+        </a>
+        <a href="/rotinas" class="sheet-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6M9 13h6M9 17h6"/></svg>
+            Rotinas
+        </a>
+        <a href="/metas" class="sheet-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            Nova meta
+        </a>
+    </div>
+</div>
 <main class="container">
     {% block content %}{% endblock %}
 </main>
@@ -171,13 +190,17 @@
             navigator.serviceWorker.register('/sw.js').catch(() => {});
         });
     }
-    // Menu "Mais" da barra inferior (mobile)
+    // Sheets da barra inferior (botão "Mais" e botão "+")
     (function () {
-        const btn = document.getElementById('more-btn');
-        const sheet = document.getElementById('more-sheet');
-        if (!btn || !sheet) return;
-        btn.addEventListener('click', () => { sheet.hidden = false; });
-        sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.hidden = true; });
+        function bind(btnId, sheetId) {
+            const btn = document.getElementById(btnId);
+            const sheet = document.getElementById(sheetId);
+            if (!btn || !sheet) return;
+            btn.addEventListener('click', () => { sheet.hidden = false; });
+            sheet.addEventListener('click', (e) => { if (e.target === sheet) sheet.hidden = true; });
+        }
+        bind('more-btn', 'more-sheet');
+        bind('add-btn', 'add-sheet');
     })();
 
     // Fundo plexus neon — sutil e leve (pausa quando a aba não está visível)
