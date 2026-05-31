@@ -1419,8 +1419,7 @@ input[type="file"]:hover { border-color: var(--accent); background: var(--panel-
 }
 
 @media (max-width: 420px) {
-    .brand span { display: none; }
-    .athlete-name { max-width: 70px; }
+    .athlete-name { max-width: 64px; }
 }
 
 /* PWA standalone: zera margens superiores que conflitam com a status bar */
