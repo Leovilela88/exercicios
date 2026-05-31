@@ -34,6 +34,9 @@ body {
     font-feature-settings: 'cv02', 'cv11';
 }
 
+/* Garante que o atributo hidden sempre esconda (mesmo com display flex/grid) */
+[hidden] { display: none !important; }
+
 /* Evita vazamento horizontal da página (scroll lateral indesejado) */
 html, body { overflow-x: hidden; max-width: 100%; }
 
@@ -397,6 +400,28 @@ html, body { overflow-x: hidden; max-width: 100%; }
     border-radius: 4px;
     font-size: 0.85em;
     color: var(--text-2);
+}
+
+.install-banner { position: relative; }
+.banner-close {
+    position: absolute;
+    top: 10px;
+    right: 12px;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1.5rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.banner-close:hover { color: var(--text); }
+.kbd {
+    display: inline-block;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    padding: 0 7px;
+    font-weight: 700;
 }
 
 @media (max-width: 640px) {

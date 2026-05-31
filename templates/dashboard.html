@@ -26,6 +26,34 @@
 </section>
 {% endif %}
 
+<section class="onboard-card install-banner" id="install-banner" hidden>
+    <button class="banner-close" id="install-dismiss" aria-label="Dispensar">&times;</button>
+    <div class="onboard-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="20" x="5" y="2" rx="2" ry="2"/><path d="M12 18h.01"/></svg>
+    </div>
+    <div class="onboard-body">
+        <h2>Use como app no celular</h2>
+        <p>Adicione o Exercícios à tela inicial e abra em tela cheia, como um app de verdade.</p>
+        <a href="/instalar" class="btn-primary">Ver como instalar</a>
+    </div>
+</section>
+
+<script>
+    (function () {
+        const banner = document.getElementById('install-banner');
+        if (!banner) return;
+        const standalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+        if (standalone || localStorage.getItem('install-dismissed')) return;
+        banner.hidden = false;
+        const close = document.getElementById('install-dismiss');
+        if (close) close.addEventListener('click', () => {
+            banner.hidden = true;
+            localStorage.setItem('install-dismissed', '1');
+        });
+    })();
+</script>
+
 {% if insights %}
 <section class="insights">
     {% for ins in insights %}

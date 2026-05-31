@@ -1,0 +1,82 @@
+{% extends "base.html" %}
+{% block title %}Instalar como app - Exercícios{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Usar como app no celular</h1>
+        <p class="page-sub">Adicione à tela inicial e abra em tela cheia, igual a um app instalado da loja — mas sem precisar de loja.</p>
+    </div>
+</header>
+
+<div id="already-installed" class="alert alert-success" hidden>
+    <strong>Tudo certo!</strong> Você já está usando o app no modo instalado.
+</div>
+
+{# Android / Chrome #}
+<section class="panel-section" id="guide-android">
+    <div class="section-head"><h2>No Android (Chrome)</h2></div>
+    <div class="steps">
+        <div class="step">
+            <span class="step-num">1</span>
+            <div class="step-body">
+                <strong>Abra este site no Chrome</strong>
+                <p>Se chegou aqui por outro navegador, abra o mesmo endereço no Chrome.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span>
+            <div class="step-body">
+                <strong>Toque no menu <span class="kbd">⋮</span></strong>
+                <p>É o ícone de três pontinhos no canto superior direito.</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span>
+            <div class="step-body">
+                <strong>Toque em "Instalar app" ou "Adicionar à tela inicial"</strong>
+                <p>Confirme. O ícone do app aparece junto com seus outros apps.</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+{# iPhone / Safari #}
+<section class="panel-section" id="guide-ios">
+    <div class="section-head"><h2>No iPhone / iPad (Safari)</h2></div>
+    <div class="steps">
+        <div class="step">
+            <span class="step-num">1</span>
+            <div class="step-body">
+                <strong>Abra este site no Safari</strong>
+                <p>No iPhone só funciona pelo Safari (não pelo Chrome).</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">2</span>
+            <div class="step-body">
+                <strong>Toque no botão Compartilhar</strong>
+                <p>É o quadrado com uma seta para cima, na barra de baixo (ou de cima).</p>
+            </div>
+        </div>
+        <div class="step">
+            <span class="step-num">3</span>
+            <div class="step-body">
+                <strong>Toque em "Adicionar à Tela de Início"</strong>
+                <p>Role um pouco se não achar. Depois confirme em "Adicionar". Pronto!</p>
+            </div>
+        </div>
+    </div>
+</section>
+
+<p class="hint" style="margin-top: 16px;">
+    Depois de instalado, é só abrir pelo ícone na tela inicial — ele abre em tela cheia, sem a barra do navegador. Funciona offline para abrir, mas precisa de internet para carregar seus treinos.
+</p>
+
+<script>
+    (function () {
+        const standalone = window.matchMedia('(display-mode: standalone)').matches
+            || window.navigator.standalone === true;
+        if (standalone) document.getElementById('already-installed').hidden = false;
+    })();
+</script>
+{% endblock %}

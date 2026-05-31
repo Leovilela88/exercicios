@@ -1474,6 +1474,15 @@ def offline(request: Request):
     return templates.TemplateResponse("offline.html", {"request": request})
 
 
+@app.get("/instalar", response_class=HTMLResponse)
+def install_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    return templates.TemplateResponse(
+        "install.html",
+        {"request": request, "athlete": athlete, "athletes": get_all_athletes(db)},
+    )
+
+
 @app.get("/api/db-info")
 def api_db_info(db: Session = Depends(get_db)):
     """Diagnóstico: mostra qual banco está em uso e contagem de registros.
