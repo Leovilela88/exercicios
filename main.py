@@ -927,6 +927,10 @@ def delete_workout(
         Workout.id == workout_id, Workout.athlete_id == athlete.id
     ).first()
     if w:
+        # Remove os exercícios vinculados antes (evita violação de FK no Postgres)
+        db.query(ExerciseEntry).filter(
+            ExerciseEntry.workout_id == w.id
+        ).delete(synchronize_session=False)
         db.delete(w)
         db.commit()
     dest = redirect if redirect in ("/", "/treinos") else "/"
@@ -1328,6 +1332,20 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
         return RedirectResponse(url="/atletas", status_code=303)
     a = db.query(Athlete).filter(Athlete.id == aid).first()
     if a:
+        # Limpa os vínculos antes (evita violação de FK no Postgres)
+        w_ids = [wid for (wid,) in
+                 db.query(Workout.id).filter(Workout.athlete_id == aid).all()]
+        if w_ids:
+            db.query(ExerciseEntry).filter(
+                ExerciseEntry.workout_id.in_(w_ids)).delete(synchronize_session=False)
+        r_ids = [rid for (rid,) in
+                 db.query(Routine.id).filter(Routine.athlete_id == aid).all()]
+        if r_ids:
+            db.query(RoutineItem).filter(
+                RoutineItem.routine_id.in_(r_ids)).delete(synchronize_session=False)
+        db.query(Routine).filter(Routine.athlete_id == aid).delete(synchronize_session=False)
+        db.query(Goal).filter(Goal.athlete_id == aid).delete(synchronize_session=False)
+        db.query(WeightLog).filter(WeightLog.athlete_id == aid).delete(synchronize_session=False)
         db.query(Workout).filter(Workout.athlete_id == aid).delete(synchronize_session=False)
         db.delete(a)
         db.commit()
