@@ -4,81 +4,48 @@
 <header class="page-header">
     <div>
         <h1 class="page-title">Musculação</h1>
-        <p class="page-sub">Seus treinos e rotinas de <strong>{{ athlete.name }}</strong></p>
+        <p class="page-sub">Monte seus treinos e acompanhe a evolução das cargas</p>
     </div>
-    <form method="post" action="/novo" style="margin:0;">
-        <input type="hidden" name="sport" value="musculacao" />
-        <input type="hidden" name="workout_date" value="{{ today }}" />
-        <button type="submit" class="btn-primary btn-small">+ Treino vazio</button>
-    </form>
 </header>
 
-{# --- Rotinas: o treino a fazer --- #}
-<section class="panel-section">
-    <div class="section-head"><h2>Meus treinos (rotinas)</h2></div>
-    {% if routines %}
-    <div class="routine-grid">
-        {% for item in routines %}
-        <article class="routine-card">
-            <header>
-                <h3>{{ item.r.name }}</h3>
-                <form method="post" action="/rotinas/{{ item.r.id }}/delete" onsubmit="return confirm('Excluir a rotina {{ item.r.name }}?');">
-                    <button class="btn-icon" type="submit" title="Excluir rotina">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-                    </button>
-                </form>
-            </header>
-            <ul class="routine-items">
-                {% for it in item.exs %}
-                <li>
-                    <span class="ri-name">{{ it.name }}</span>
-                    <span class="ri-meta">{% if it.sets %}{{ it.sets }}×{{ it.reps or '?' }}{% endif %}{% if it.weight_kg %} · {{ "%.1f"|format(it.weight_kg) }} kg{% endif %}</span>
-                </li>
-                {% endfor %}
-            </ul>
-            <form method="post" action="/musculacao/iniciar" style="margin-top:12px;">
-                <input type="hidden" name="routine_id" value="{{ item.r.id }}" />
-                <input type="hidden" name="workout_date" value="{{ today }}" />
-                <button type="submit" class="btn-primary btn-small" style="width:100%;">▶ Iniciar este treino hoje</button>
-            </form>
-        </article>
-        {% endfor %}
-    </div>
-    {% else %}
-    <p class="empty">Nenhuma rotina ainda. Monte um treino de musculação, adicione os exercícios e use <strong>"Salvar como rotina"</strong> no detalhe do treino.</p>
-    {% endif %}
+<section class="form" style="max-width: 560px; margin-bottom: 24px;">
+    <h2 class="form-title">Novo treino</h2>
+    <form method="post" action="/rotinas">
+        <div class="row" style="align-items: flex-end;">
+            <label style="flex: 1;">
+                <span>Nome do treino</span>
+                <input type="text" name="name" required maxlength="100" placeholder="ex: Treino A - Peito e tríceps" />
+            </label>
+            <button type="submit" class="btn-primary">Criar e montar</button>
+        </div>
+        <p class="hint">Crie o treino e adicione os exercícios com séries, repetições e carga. Depois é só atualizar as cargas conforme evolui.</p>
+    </form>
 </section>
 
-{# --- Treinos recentes de musculação --- #}
-<section class="panel-section">
-    <div class="section-head">
-        <h2>Treinos recentes</h2>
-        <a class="section-link" href="/treinos?sport=musculacao">ver todos →</a>
-    </div>
-    {% if recent %}
-    <div class="recent">
-        <div class="table-wrap">
-            <table class="tbl">
-                <thead><tr><th>Data</th><th>Exercícios</th><th>Volume</th><th></th></tr></thead>
-                <tbody>
-                {% for r in recent %}
-                <tr>
-                    <td>{{ r.w.date.strftime('%d/%m/%y') }}</td>
-                    <td>{{ r.count }} exerc.</td>
-                    <td>{{ "{:,.0f} kg".format(r.volume).replace(',', '.') if r.volume else "—" }}</td>
-                    <td class="row-actions">
-                        <a href="/treino/{{ r.w.id }}" class="btn-icon" title="Ver/editar">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z"/><circle cx="12" cy="12" r="3"/></svg>
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-                </tbody>
-            </table>
-        </div>
-    </div>
-    {% else %}
-    <p class="empty">Nenhum treino de musculação registrado ainda.</p>
-    {% endif %}
+{% if routines %}
+<section class="routine-grid">
+    {% for item in routines %}
+    <a href="/rotina/{{ item.r.id }}" class="routine-card routine-card-link">
+        <header>
+            <h3>{{ item.r.name }}</h3>
+            <span class="routine-edit-hint">editar →</span>
+        </header>
+        {% if item.exs %}
+        <ul class="routine-items">
+            {% for it in item.exs %}
+            <li>
+                <span class="ri-name">{{ it.name }}</span>
+                <span class="ri-meta">{% if it.sets %}{{ it.sets }}×{{ it.reps or '?' }}{% endif %}{% if it.weight_kg %} · {{ "%.1f"|format(it.weight_kg) }} kg{% endif %}</span>
+            </li>
+            {% endfor %}
+        </ul>
+        {% else %}
+        <p class="empty" style="font-size: 0.88rem;">Sem exercícios ainda — toque para montar.</p>
+        {% endif %}
+    </a>
+    {% endfor %}
 </section>
+{% else %}
+<p class="empty">Você ainda não tem treinos. Crie o primeiro no formulário acima.</p>
+{% endif %}
 {% endblock %}

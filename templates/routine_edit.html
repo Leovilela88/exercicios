@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}{{ r.name }} - Musculação{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">{{ r.name }}</h1>
+        <p class="page-sub">Monte os exercícios e atualize as cargas conforme evolui</p>
+    </div>
+    <a href="/musculacao" class="btn-ghost btn-small">← Voltar</a>
+</header>
+
+{% if trained %}
+<div class="alert alert-success">
+    <strong>Treino registrado!</strong> A sessão de hoje entrou no seu histórico, calorias e calendário.
+</div>
+{% endif %}
+
+<section class="recent" style="margin-bottom: 20px;">
+    <div class="section-head">
+        <h2>Exercícios</h2>
+        {% if volume %}<span class="section-sub">Volume: {{ "{:,.0f} kg".format(volume).replace(',', '.') }}</span>{% endif %}
+    </div>
+    {% if items %}
+    <div class="ex-edit-list">
+        {% for it in items %}
+        <form method="post" action="/rotina-item/{{ it.id }}/editar" class="ex-edit-row">
+            <span class="ex-edit-name">{{ it.name }}</span>
+            <input type="number" name="sets" min="1" max="50" value="{{ it.sets or '' }}" placeholder="séries" aria-label="séries" />
+            <span class="ex-x">×</span>
+            <input type="number" name="reps" min="1" max="200" value="{{ it.reps or '' }}" placeholder="reps" aria-label="repetições" />
+            <input type="number" name="weight_kg" step="0.5" min="0" value="{{ "%.1f"|format(it.weight_kg) if it.weight_kg else '' }}" placeholder="kg" aria-label="carga" />
+            <button type="submit" class="btn-ghost btn-small" title="Salvar carga">Salvar</button>
+            <button type="submit" formaction="/rotina-item/{{ it.id }}/delete" formnovalidate class="btn-icon" title="Remover" onclick="return confirm('Remover {{ it.name }}?');">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+            </button>
+        </form>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">Nenhum exercício ainda. Adicione abaixo.</p>
+    {% endif %}
+</section>
+
+<section class="form" style="max-width: 760px; margin-bottom: 20px;">
+    <h2 class="form-title">Adicionar exercício</h2>
+    <form method="post" action="/rotina/{{ r.id }}/item">
+        <label>
+            <span>Exercício</span>
+            <input type="text" name="name" id="ex-name" list="exercise-names" required maxlength="100" placeholder="ex: Supino inclinado" autocomplete="off" />
+            <datalist id="exercise-names">
+                {% for n in exercise_names %}<option value="{{ n }}"></option>{% endfor %}
+            </datalist>
+        </label>
+        <div class="progress-hint" id="progress-hint" hidden></div>
+        <div class="row">
+            <label><span>Séries</span><input type="number" min="1" max="50" name="sets" id="ex-sets" placeholder="ex: 4" /></label>
+            <label><span>Repetições</span><input type="number" min="1" max="200" name="reps" id="ex-reps" placeholder="ex: 10" /></label>
+            <label><span>Carga (kg)</span><input type="number" step="0.5" min="0" name="weight_kg" id="ex-weight" placeholder="ex: 40" /></label>
+        </div>
+        <div class="actions">
+            <button type="submit" class="btn-primary">+ Adicionar exercício</button>
+        </div>
+    </form>
+</section>
+
+{% if items %}
+<form method="post" action="/rotina/{{ r.id }}/treinei" style="margin-bottom: 24px;">
+    <button type="submit" class="btn-primary" style="width: 100%; padding: 14px;">✓ Treinei isso hoje (registrar sessão)</button>
+</form>
+{% endif %}
+
+<details class="routine-extra">
+    <summary>Renomear ou excluir este treino</summary>
+    <form method="post" action="/rotina/{{ r.id }}/renomear" class="row" style="margin-top: 12px;">
+        <input type="text" name="name" value="{{ r.name }}" maxlength="100" required style="flex:1;" />
+        <button type="submit" class="btn-ghost btn-small">Renomear</button>
+    </form>
+    <form method="post" action="/rotinas/{{ r.id }}/delete" onsubmit="return confirm('Excluir o treino {{ r.name }}?');" style="margin-top: 10px;">
+        <button type="submit" class="btn-ghost btn-small" style="color: var(--danger);">Excluir treino</button>
+    </form>
+</details>
+
+<script>
+    (function () {
+        const name = document.getElementById('ex-name');
+        const hint = document.getElementById('progress-hint');
+        const setsEl = document.getElementById('ex-sets');
+        const repsEl = document.getElementById('ex-reps');
+        const wEl = document.getElementById('ex-weight');
+        if (!name) return;
+        let timer = null;
+        async function lookup() {
+            const q = name.value.trim();
+            if (q.length < 2) { hint.hidden = true; return; }
+            try {
+                const r = await fetch('/api/exercicio-hist?name=' + encodeURIComponent(q));
+                const j = await r.json();
+                if (!j.items.length) { hint.hidden = true; return; }
+                const last = j.items[0];
+                const parts = [];
+                if (last.sets) parts.push(last.sets + '×' + (last.reps || '?'));
+                if (last.weight) parts.push(last.weight + ' kg');
+                hint.innerHTML = '<strong>Última vez (' + last.date + '):</strong> ' +
+                    (parts.join(' · ') || 'sem dados') +
+                    ' <button type="button" class="hint-fill">usar</button>';
+                hint.hidden = false;
+                const fill = hint.querySelector('.hint-fill');
+                if (fill) fill.addEventListener('click', () => {
+                    if (last.sets) setsEl.value = last.sets;
+                    if (last.reps) repsEl.value = last.reps;
+                    if (last.weight) wEl.value = last.weight;
+                });
+            } catch (_) { hint.hidden = true; }
+        }
+        function debounce() { clearTimeout(timer); timer = setTimeout(lookup, 250); }
+        name.addEventListener('input', debounce);
+        name.addEventListener('change', lookup);
+    })();
+</script>
+{% endblock %}

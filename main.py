@@ -667,7 +667,7 @@ def api_exercise_history(request: Request, name: str, db: Session = Depends(get_
 
 @app.get("/musculacao", response_class=HTMLResponse)
 def strength_hub(request: Request, db: Session = Depends(get_db)):
-    """Hub da musculação: rotinas (o treino a fazer) + treinos recentes."""
+    """Hub da musculação: lista de rotinas (treinos) editáveis."""
     athlete = get_active_athlete(request, db)
     routines = (
         db.query(Routine).filter(Routine.athlete_id == athlete.id)
@@ -680,26 +680,6 @@ def strength_hub(request: Request, db: Session = Depends(get_db)):
             .order_by(RoutineItem.position, RoutineItem.id).all()
         )
         rdata.append({"r": r, "exs": exs})
-
-    recent_q = (
-        db.query(Workout)
-        .filter(Workout.athlete_id == athlete.id, Workout.sport == "musculacao")
-        .order_by(Workout.date.desc(), Workout.id.desc()).limit(8).all()
-    )
-    ids = [w.id for w in recent_q]
-    entries = (
-        db.query(ExerciseEntry).filter(ExerciseEntry.workout_id.in_(ids)).all()
-        if ids else []
-    )
-    by_w: dict[int, list] = {}
-    for e in entries:
-        by_w.setdefault(e.workout_id, []).append(e)
-    recent = []
-    for w in recent_q:
-        es = by_w.get(w.id, [])
-        vol = sum((e.sets or 0) * (e.reps or 0) * (e.weight_kg or 0) for e in es)
-        recent.append({"w": w, "count": len(es), "volume": vol})
-
     return templates.TemplateResponse(
         "strength.html",
         {
@@ -707,8 +687,6 @@ def strength_hub(request: Request, db: Session = Depends(get_db)):
             "athlete": athlete,
             "athletes": get_all_athletes(db),
             "routines": rdata,
-            "recent": recent,
-            "today": date.today().isoformat(),
         },
     )
 
@@ -718,36 +696,148 @@ def routines_redirect():
     return RedirectResponse(url="/musculacao", status_code=307)
 
 
-@app.post("/musculacao/iniciar")
-def start_routine_workout(
-    request: Request, routine_id: str = Form(...),
-    workout_date: str = Form(None), db: Session = Depends(get_db),
+@app.post("/rotinas")
+def routine_create(request: Request, name: str = Form(...), db: Session = Depends(get_db)):
+    """Cria uma rotina (treino) vazia e abre para editar os exercícios."""
+    athlete = get_active_athlete(request, db)
+    if not name.strip():
+        return RedirectResponse(url="/musculacao", status_code=303)
+    r = Routine(athlete_id=athlete.id, name=name.strip()[:100])
+    db.add(r)
+    db.commit()
+    db.refresh(r)
+    return RedirectResponse(url=f"/rotina/{r.id}", status_code=303)
+
+
+def _get_routine(db: Session, athlete_id: int, routine_id: int):
+    return db.query(Routine).filter(
+        Routine.id == routine_id, Routine.athlete_id == athlete_id
+    ).first()
+
+
+@app.get("/rotina/{routine_id}", response_class=HTMLResponse)
+def routine_edit_page(
+    request: Request, routine_id: int,
+    trained: Optional[int] = None, db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
-    rid = _to_int(routine_id)
-    r = db.query(Routine).filter(
-        Routine.id == rid, Routine.athlete_id == athlete.id
-    ).first() if rid else None
+    r = _get_routine(db, athlete.id, routine_id)
     if not r:
         return RedirectResponse(url="/musculacao", status_code=303)
-    try:
-        d = date.fromisoformat(workout_date) if workout_date else date.today()
-    except ValueError:
-        d = date.today()
-    w = Workout(athlete_id=athlete.id, date=d, sport="musculacao")
-    db.add(w)
-    db.flush()
     items = (
         db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
         .order_by(RoutineItem.position, RoutineItem.id).all()
     )
+    volume = sum((it.sets or 0) * (it.reps or 0) * (it.weight_kg or 0) for it in items)
+    used = (
+        db.query(ExerciseEntry.name)
+        .join(Workout, ExerciseEntry.workout_id == Workout.id)
+        .filter(Workout.athlete_id == athlete.id).distinct().all()
+    )
+    exercise_names = sorted({n for (n,) in used})
+    return templates.TemplateResponse(
+        "routine_edit.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "r": r,
+            "items": items,
+            "volume": volume,
+            "exercise_names": exercise_names,
+            "trained": trained,
+        },
+    )
+
+
+@app.post("/rotina/{routine_id}/renomear")
+def routine_rename(request: Request, routine_id: int,
+                   name: str = Form(...), db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    r = _get_routine(db, athlete.id, routine_id)
+    if r and name.strip():
+        r.name = name.strip()[:100]
+        db.commit()
+    return RedirectResponse(url=f"/rotina/{routine_id}", status_code=303)
+
+
+@app.post("/rotina/{routine_id}/item")
+def routine_add_item(
+    request: Request, routine_id: int,
+    name: str = Form(...), sets: Optional[str] = Form(None),
+    reps: Optional[str] = Form(None), weight_kg: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    r = _get_routine(db, athlete.id, routine_id)
+    if r and name.strip():
+        last = (db.query(func.coalesce(func.max(RoutineItem.position), -1))
+                .filter(RoutineItem.routine_id == r.id).scalar()) or -1
+        db.add(RoutineItem(
+            routine_id=r.id, name=name.strip()[:100],
+            sets=_to_int(sets), reps=_to_int(reps), weight_kg=_to_float(weight_kg),
+            position=last + 1,
+        ))
+        db.commit()
+    return RedirectResponse(url=f"/rotina/{routine_id}", status_code=303)
+
+
+@app.post("/rotina-item/{item_id}/editar")
+def routine_item_edit(
+    request: Request, item_id: int,
+    sets: Optional[str] = Form(None), reps: Optional[str] = Form(None),
+    weight_kg: Optional[str] = Form(None), db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    it = (db.query(RoutineItem).join(Routine, RoutineItem.routine_id == Routine.id)
+          .filter(RoutineItem.id == item_id, Routine.athlete_id == athlete.id).first())
+    if it:
+        it.sets = _to_int(sets)
+        it.reps = _to_int(reps)
+        it.weight_kg = _to_float(weight_kg)
+        db.commit()
+    rid = it.routine_id if it else None
+    return RedirectResponse(url=f"/rotina/{rid}" if rid else "/musculacao", status_code=303)
+
+
+@app.post("/rotina-item/{item_id}/delete")
+def routine_item_delete(request: Request, item_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    it = (db.query(RoutineItem).join(Routine, RoutineItem.routine_id == Routine.id)
+          .filter(RoutineItem.id == item_id, Routine.athlete_id == athlete.id).first())
+    rid = it.routine_id if it else None
+    if it:
+        db.delete(it)
+        db.commit()
+    return RedirectResponse(url=f"/rotina/{rid}" if rid else "/musculacao", status_code=303)
+
+
+@app.post("/rotina/{routine_id}/treinei")
+def routine_train(request: Request, routine_id: int, db: Session = Depends(get_db)):
+    """Registra que fez este treino hoje: cria a sessão (conta no dashboard,
+    calorias, calendário) sem sair da rotina."""
+    athlete = get_active_athlete(request, db)
+    r = _get_routine(db, athlete.id, routine_id)
+    if not r:
+        return RedirectResponse(url="/musculacao", status_code=303)
+    items = (db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
+             .order_by(RoutineItem.position, RoutineItem.id).all())
+    today = date.today()
+    # duração estimada: ~3 min por série (ou 45 min se não houver séries)
+    total_sets = sum(it.sets or 0 for it in items)
+    dur = total_sets * 3 if total_sets else 45
+    cal = estimate_calories("musculacao", athlete.weight_kg, None, dur)
+    w = Workout(athlete_id=athlete.id, date=today, sport="musculacao",
+                duration_min=dur, calories=cal, notes=f"Rotina: {r.name}")
+    db.add(w)
+    db.flush()
     for it in items:
         db.add(ExerciseEntry(
             workout_id=w.id, name=it.name, sets=it.sets,
             reps=it.reps, weight_kg=it.weight_kg, position=it.position,
         ))
     db.commit()
-    return RedirectResponse(url=f"/treino/{w.id}", status_code=303)
+    return RedirectResponse(url=f"/rotina/{routine_id}?trained=1", status_code=303)
 
 
 @app.post("/rotinas/{routine_id}/delete")
