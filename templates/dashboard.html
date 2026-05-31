@@ -54,6 +54,20 @@
     })();
 </script>
 
+{% if next_race %}
+<a href="/provas" class="race-banner">
+    <div class="race-banner-count">
+        <span class="race-days">{{ next_race.days }}</span>
+        <span class="race-days-label">{{ 'dia' if next_race.days == 1 else 'dias' }}</span>
+    </div>
+    <div class="race-banner-body">
+        <div class="race-banner-label">Próxima prova</div>
+        <div class="race-banner-name">{{ next_race.r.name }} · {{ next_race.r.date.strftime('%d/%m') }}</div>
+        {% if next_race.pred %}<div class="race-banner-pred">Previsão no seu ritmo: <strong>{{ next_race.pred.time }}</strong></div>{% endif %}
+    </div>
+</a>
+{% endif %}
+
 {% if insights %}
 <section class="insights">
     {% for ins in insights %}

@@ -393,6 +393,38 @@ def race_predictions(db: Session, athlete_id: int, today: date) -> Optional[dict
     }
 
 
+_RACE_MIN_KM = {"corrida": 3.0, "trilha": 3.0, "natacao": 0.3, "bike": 5.0}
+
+
+def predict_race_time(db: Session, athlete_id: int, today: date,
+                      distance_km: float, sport: str) -> Optional[dict]:
+    """Previsão (Riegel) do tempo para uma prova de distância `distance_km`,
+    a partir da melhor performance recente do atleta naquele esporte."""
+    if not distance_km or distance_km <= 0:
+        return None
+    min_km = _RACE_MIN_KM.get(sport)
+    if min_km is None:
+        return None  # esporte sem previsão de tempo (musculação etc.)
+    cutoff = today - timedelta(days=120)
+    rows = (
+        db.query(Workout).filter(
+            Workout.athlete_id == athlete_id, Workout.sport == sport,
+            Workout.date >= cutoff, Workout.distance_km >= min_km,
+            Workout.duration_min.isnot(None), Workout.duration_min > 0,
+        ).all()
+    )
+    if not rows:
+        return None
+    unit = (lambda km: km if sport in ("corrida", "trilha") else km * 10.0)
+    best = min(rows, key=lambda w: w.duration_min / unit(w.distance_km))
+    d1, t1 = best.distance_km, best.duration_min
+    t2 = t1 * (distance_km / d1) ** 1.06  # minutos
+    secs_per = t2 * 60 / unit(distance_km)
+    m, s = divmod(int(round(secs_per)), 60)
+    suffix = "/km" if sport in ("corrida", "trilha") else ("/100m" if sport == "natacao" else "/km")
+    return {"time": _fmt_time(t2), "pace": f"{m}:{s:02d}{suffix}"}
+
+
 _WD_PT = ["segundas", "terças", "quartas", "quintas", "sextas", "sábados", "domingos"]
 
 

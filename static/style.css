@@ -428,6 +428,98 @@ html, body { overflow-x: hidden; max-width: 100%; }
     .onboard-card { flex-direction: column; text-align: center; }
 }
 
+/* ---------- Próximas provas ---------- */
+.race-banner {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: linear-gradient(135deg, rgba(249,115,22,0.14), rgba(234,179,8,0.08));
+    border: 1px solid rgba(249,115,22,0.3);
+    border-radius: 16px;
+    padding: 16px 20px;
+    margin-bottom: 24px;
+    text-decoration: none;
+    color: inherit;
+    transition: transform .1s;
+}
+.race-banner:hover { transform: translateY(-2px); }
+.race-banner-count, .race-count {
+    flex-shrink: 0;
+    width: 64px;
+    text-align: center;
+    line-height: 1;
+}
+.race-days { display: block; font-size: 1.9rem; font-weight: 800; color: #fb923c; letter-spacing: -0.03em; }
+.race-days-label { font-size: 0.72rem; color: var(--muted); text-transform: uppercase; }
+.race-banner-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.5px; color: var(--muted); }
+.race-banner-name { font-size: 1.05rem; font-weight: 600; color: var(--text); margin: 2px 0; }
+.race-banner-pred { font-size: 0.85rem; color: var(--text-2); }
+
+.race-list { display: flex; flex-direction: column; gap: 14px; }
+.race-card {
+    display: flex;
+    gap: 16px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 18px 20px;
+    box-shadow: var(--shadow);
+}
+.race-count {
+    border-right: 1px solid var(--border);
+    padding-right: 16px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+.race-body { flex: 1; min-width: 0; }
+.race-name { font-size: 1.1rem; font-weight: 600; color: var(--text); }
+.race-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin: 6px 0;
+}
+.race-pred {
+    background: rgba(234,179,8,0.10);
+    border: 1px solid rgba(234,179,8,0.25);
+    border-radius: 8px;
+    padding: 7px 12px;
+    font-size: 0.88rem;
+    color: var(--text-2);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 10px;
+}
+.race-pred .muted { color: var(--muted); }
+.race-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.race-actions form { margin: 0; }
+.race-done summary { list-style: none; display: inline-block; }
+.race-done summary::-webkit-details-marker { display: none; }
+.race-result-form {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+    font-size: 0.85rem;
+    color: var(--muted);
+}
+.race-result-form input {
+    width: 56px;
+    background: var(--panel-2);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 7px 8px;
+    font: inherit;
+    text-align: center;
+}
+
 /* ---------- Insights (coach) ---------- */
 .insights {
     display: grid;

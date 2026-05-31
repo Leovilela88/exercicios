@@ -19,7 +19,7 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label
-from models import (Athlete, ExerciseEntry, Goal, Routine, RoutineItem,
+from models import (Athlete, ExerciseEntry, Goal, Race, Routine, RoutineItem,
                     Settings, WeightLog, Workout)
 from strava_import import parse_strava_csv
 import achievements
@@ -411,6 +411,17 @@ def dashboard(
     pace_swim = stats.pace_trend(db, athlete.id, today, "natacao")
     insights = stats.insights(db, athlete.id, today)
     predictions = stats.race_predictions(db, athlete.id, today)
+    next_race_row = (
+        db.query(Race).filter(
+            Race.athlete_id == athlete.id, Race.done == 0, Race.date >= today
+        ).order_by(Race.date).first()
+    )
+    next_race = None
+    if next_race_row:
+        nr = next_race_row
+        pred = (stats.predict_race_time(db, athlete.id, today, nr.distance_km, nr.sport)
+                if nr.distance_km else None)
+        next_race = {"r": nr, "days": (nr.date - today).days, "pred": pred}
 
     return templates.TemplateResponse(
         "dashboard.html",
@@ -430,6 +441,7 @@ def dashboard(
             "pace_swim": pace_swim,
             "insights": insights,
             "predictions": predictions,
+            "next_race": next_race,
             "labels": labels,
             "cal_series": cal_series,
             "active_series": active_series,
@@ -1078,6 +1090,106 @@ def goals_delete(request: Request, goal_id: int, db: Session = Depends(get_db)):
         db.delete(g)
         db.commit()
     return RedirectResponse(url="/metas", status_code=303)
+
+
+# ------------- próximas provas -------------
+
+def _race_view(db: Session, athlete: Athlete, r: Race, today: date) -> dict:
+    days = (r.date - today).days
+    pred = None
+    if not r.done and r.distance_km:
+        pred = stats.predict_race_time(db, athlete.id, today, r.distance_km, r.sport)
+    return {"r": r, "days": days, "pred": pred,
+            "result": _fmt_minutes(r.result_min) if r.result_min else None}
+
+
+def _fmt_minutes(minutes: float) -> str:
+    total = int(round(minutes * 60))
+    h, rem = divmod(total, 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h else f"{m}:{s:02d}"
+
+
+@app.get("/provas", response_class=HTMLResponse)
+def races_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    today = date.today()
+    races = (
+        db.query(Race).filter(Race.athlete_id == athlete.id)
+        .order_by(Race.date).all()
+    )
+    upcoming = [_race_view(db, athlete, r, today) for r in races
+                if not r.done and r.date >= today]
+    past = [_race_view(db, athlete, r, today) for r in races
+            if r.done or r.date < today]
+    past.reverse()
+    return templates.TemplateResponse(
+        "races.html",
+        {
+            "request": request, "athlete": athlete,
+            "athletes": get_all_athletes(db),
+            "upcoming": upcoming, "past": past,
+            "today": today.isoformat(), "sports": SPORTS,
+        },
+    )
+
+
+@app.post("/provas")
+def race_create(
+    request: Request,
+    name: str = Form(...), race_date: str = Form(...),
+    sport: str = Form("corrida"), distance_m: Optional[str] = Form(None),
+    location: Optional[str] = Form(None), link: Optional[str] = Form(None),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    try:
+        d = date.fromisoformat(race_date)
+    except ValueError:
+        return RedirectResponse(url="/provas", status_code=303)
+    dist_m = _to_float(distance_m)
+    db.add(Race(
+        athlete_id=athlete.id, name=name.strip()[:120], date=d,
+        sport=sport if sport in SPORTS else "corrida",
+        distance_km=(dist_m / 1000.0) if dist_m else None,
+        location=(location.strip()[:120] or None) if location else None,
+        link=(link.strip()[:300] or None) if link else None,
+    ))
+    db.commit()
+    return RedirectResponse(url="/provas", status_code=303)
+
+
+@app.post("/provas/{race_id}/concluir")
+def race_complete(
+    request: Request, race_id: int,
+    result_h: Optional[str] = Form(None), result_m: Optional[str] = Form(None),
+    result_s: Optional[str] = Form(None), db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    r = db.query(Race).filter(
+        Race.id == race_id, Race.athlete_id == athlete.id
+    ).first()
+    if r:
+        h = _to_int(result_h) or 0
+        m = _to_int(result_m) or 0
+        s = _to_int(result_s) or 0
+        total = h * 60 + m + s / 60.0
+        r.result_min = round(total, 2) if total > 0 else None
+        r.done = 1
+        db.commit()
+    return RedirectResponse(url="/provas", status_code=303)
+
+
+@app.post("/provas/{race_id}/delete")
+def race_delete(request: Request, race_id: int, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    r = db.query(Race).filter(
+        Race.id == race_id, Race.athlete_id == athlete.id
+    ).first()
+    if r:
+        db.delete(r)
+        db.commit()
+    return RedirectResponse(url="/provas", status_code=303)
 
 
 # ------------- ranking & conquistas -------------

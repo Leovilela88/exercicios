@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% from "_macros.html" import bicon %}
+{% block title %}Próximas provas - Exercícios{% endblock %}
+{% block content %}
+{% set sport_labels = {'corrida':'Corrida','natacao':'Natação','bike':'Bike','trilha':'Trilha','musculacao':'Musculação','outro':'Outro'} %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Próximas provas</h1>
+        <p class="page-sub">Acompanhe a contagem regressiva e a previsão de tempo de <strong>{{ athlete.name }}</strong></p>
+    </div>
+    <a href="https://www.ticketsports.com.br/" target="_blank" rel="noopener" class="btn-ghost btn-small">Buscar provas no TicketSports</a>
+</header>
+
+{% if upcoming %}
+<section class="race-list">
+    {% for v in upcoming %}
+    <article class="race-card">
+        <div class="race-count">
+            <span class="race-days">{{ v.days }}</span>
+            <span class="race-days-label">{{ 'dia' if v.days == 1 else 'dias' }}</span>
+        </div>
+        <div class="race-body">
+            <div class="race-name">{{ v.r.name }}</div>
+            <div class="race-meta">
+                <span class="tag tag-run">{{ sport_labels.get(v.r.sport, v.r.sport) }}</span>
+                <span>{{ v.r.date.strftime('%d/%m/%Y') }}</span>
+                {% if v.r.distance_km %}<span>{{ "%.1f"|format(v.r.distance_km) }} km</span>{% endif %}
+                {% if v.r.location %}<span>{{ v.r.location }}</span>{% endif %}
+            </div>
+            {% if v.pred %}
+            <div class="race-pred"><span class="ico-inline" style="color:#fbbf24">{{ bicon('zap') }}</span> No seu ritmo atual: <strong>{{ v.pred.time }}</strong> <span class="muted">({{ v.pred.pace }})</span></div>
+            {% endif %}
+            <div class="race-actions">
+                {% if v.r.link %}<a href="{{ v.r.link }}" target="_blank" rel="noopener" class="btn-ghost btn-small">Abrir inscrição</a>{% endif %}
+                <details class="race-done">
+                    <summary class="btn-ghost btn-small">Registrar resultado</summary>
+                    <form method="post" action="/provas/{{ v.r.id }}/concluir" class="race-result-form">
+                        <span>Tempo:</span>
+                        <input type="number" name="result_h" min="0" max="24" placeholder="h" />
+                        <input type="number" name="result_m" min="0" max="59" placeholder="min" />
+                        <input type="number" name="result_s" min="0" max="59" placeholder="s" />
+                        <button type="submit" class="btn-primary btn-small">Salvar</button>
+                    </form>
+                </details>
+                <form method="post" action="/provas/{{ v.r.id }}/delete" onsubmit="return confirm('Excluir esta prova?');">
+                    <button class="btn-icon" type="submit" title="Excluir">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </article>
+    {% endfor %}
+</section>
+{% else %}
+<p class="empty">Nenhuma prova futura cadastrada. Adicione abaixo a sua próxima!</p>
+{% endif %}
+
+<section class="form" style="max-width: 640px; margin-top: 24px;">
+    <h2 class="form-title">Adicionar prova</h2>
+    <form method="post" action="/provas">
+        <div class="row">
+            <label style="flex:2;">
+                <span>Nome da prova</span>
+                <input type="text" name="name" required maxlength="120" placeholder="ex: Maratona de São Paulo" />
+            </label>
+            <label>
+                <span>Data</span>
+                <input type="date" name="race_date" value="{{ today }}" required />
+            </label>
+        </div>
+        <div class="row">
+            <label>
+                <span>Esporte</span>
+                <select name="sport">
+                    <option value="corrida">Corrida</option>
+                    <option value="natacao">Natação</option>
+                    <option value="bike">Bike</option>
+                    <option value="trilha">Trilha</option>
+                    <option value="outro">Outro</option>
+                </select>
+            </label>
+            <label>
+                <span>Distância (metros)</span>
+                <input type="number" step="1" min="0" name="distance_m" placeholder="ex: 21097" />
+            </label>
+            <label>
+                <span>Cidade / local</span>
+                <input type="text" name="location" maxlength="120" placeholder="opcional" />
+            </label>
+        </div>
+        <label>
+            <span>Link de inscrição (TicketSports, etc.)</span>
+            <input type="url" name="link" maxlength="300" placeholder="opcional — cole o link da prova" />
+        </label>
+        <div class="actions">
+            <button type="submit" class="btn-primary">Adicionar prova</button>
+        </div>
+    </form>
+</section>
+
+{% if past %}
+<section class="panel-section" style="margin-top: 24px;">
+    <div class="section-head"><h2>Provas anteriores</h2></div>
+    <div class="recent">
+        <div class="table-wrap">
+            <table class="tbl">
+                <thead><tr><th>Prova</th><th>Data</th><th>Distância</th><th>Seu tempo</th><th></th></tr></thead>
+                <tbody>
+                {% for v in past %}
+                <tr>
+                    <td><strong>{{ v.r.name }}</strong></td>
+                    <td>{{ v.r.date.strftime('%d/%m/%y') }}</td>
+                    <td>{{ "%.1f km"|format(v.r.distance_km) if v.r.distance_km else "—" }}</td>
+                    <td>{{ v.result if v.result else "—" }}</td>
+                    <td class="row-actions">
+                        <form method="post" action="/provas/{{ v.r.id }}/delete" onsubmit="return confirm('Excluir?');">
+                            <button class="btn-icon" type="submit" title="Excluir">
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</section>
+{% endif %}
+{% endblock %}

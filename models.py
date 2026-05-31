@@ -75,6 +75,22 @@ class WeightLog(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class Race(Base):
+    __tablename__ = "races"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    name = Column(String(120), nullable=False)
+    date = Column(Date, nullable=False, index=True)
+    sport = Column(String(20), nullable=False, default="corrida")
+    distance_km = Column(Float, nullable=True)
+    location = Column(String(120), nullable=True)
+    link = Column(String(300), nullable=True)
+    result_min = Column(Float, nullable=True)   # tempo real (min) após concluir
+    done = Column(Integer, nullable=False, default=0)
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Goal(Base):
     __tablename__ = "goals"
 
