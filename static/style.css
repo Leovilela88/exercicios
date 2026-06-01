@@ -1125,6 +1125,8 @@ button.cal-day {
 }
 .tbl tbody tr:hover { background: rgba(148, 163, 184, 0.04); }
 .tbl tbody tr:last-child td { border-bottom: none; }
+.tbl tbody tr.row-link { cursor: pointer; }
+.tbl tbody tr.row-link:hover { background: rgba(59, 130, 246, 0.08); }
 
 .tag {
     display: inline-block;

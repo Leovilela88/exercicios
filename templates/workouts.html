@@ -55,7 +55,7 @@
             <tbody>
             {% for w in rows %}
             {% set p = pace(w.sport, w.distance_km, w.duration_min) %}
-            <tr>
+            <tr class="row-link" data-href="/treino/{{ w.id }}">
                 <td>{{ w.date.strftime('%d/%m/%y') }}</td>
                 <td>
                     {% if w.sport == 'corrida' %}<span class="tag tag-run">Corrida</span>
@@ -117,4 +117,15 @@
     <p class="empty">Nenhum treino {% if sport %}de {{ sport_label(sport) }} {% endif %}encontrado. <a href="/novo">Adicionar treino</a> →</p>
     {% endif %}
 </section>
+
+<script>
+    // Clicar em qualquer lugar da linha abre o detalhe do treino — exceto nos
+    // botões de ação (ver/compartilhar/editar/excluir) e em links próprios.
+    document.querySelectorAll('tr.row-link').forEach(function (tr) {
+        tr.addEventListener('click', function (e) {
+            if (e.target.closest('.row-actions, a, button, form')) return;
+            window.location.href = tr.dataset.href;
+        });
+    });
+</script>
 {% endblock %}
