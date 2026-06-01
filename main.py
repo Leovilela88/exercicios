@@ -5,6 +5,7 @@ from zoneinfo import ZoneInfo
 import io
 import os
 import secrets
+import time
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -29,6 +30,7 @@ from strava_import import parse_strava_csv
 import achievements
 import auth
 import stats
+import strava_api
 
 SPORTS = ("corrida", "natacao", "musculacao", "trilha", "bike", "outro")
 
@@ -87,6 +89,14 @@ def _init_db() -> None:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN is_admin INTEGER DEFAULT 0"))
             if "last_seen_at" not in cols:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN last_seen_at TIMESTAMP"))
+            if "strava_athlete_id" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_athlete_id VARCHAR(32)"))
+            if "strava_access_token" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_access_token VARCHAR(255)"))
+            if "strava_refresh_token" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_refresh_token VARCHAR(255)"))
+            if "strava_expires_at" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_expires_at INTEGER"))
 
     db = SessionLocal()
     try:
@@ -1806,18 +1816,115 @@ async def garmin_import_upload(
     return templates.TemplateResponse("import_garmin.html", ctx)
 
 
+def _import_ctx(request, athlete, db, result=None, strava_result=None, strava_error=None):
+    return {
+        "request": request,
+        "athlete": athlete,
+        "athletes": get_all_athletes(db),
+        "result": result,
+        "strava_configured": strava_api.is_configured(),
+        "strava_connected": bool(athlete.strava_access_token),
+        "strava_result": strava_result,
+        "strava_error": strava_error,
+    }
+
+
 @app.get("/importar", response_class=HTMLResponse)
-def import_page(request: Request, db: Session = Depends(get_db)):
+def import_page(request: Request, db: Session = Depends(get_db),
+                strava: Optional[str] = None):
     athlete = get_active_athlete(request, db)
+    err = {"erro": "Não consegui conectar ao Strava. Tente de novo."} if strava == "erro" else None
     return templates.TemplateResponse(
         "import.html",
-        {
-            "request": request,
-            "athlete": athlete,
-            "athletes": get_all_athletes(db),
-            "result": None,
-        },
+        _import_ctx(request, athlete, db, strava_error=(err and err["erro"])),
     )
+
+
+def _strava_redirect_uri(request: Request) -> str:
+    # o domínio precisa bater com o "Authorization Callback Domain" no Strava
+    return f"https://{request.url.hostname}/strava/callback"
+
+
+@app.get("/strava/conectar")
+def strava_connect(request: Request, db: Session = Depends(get_db)):
+    get_active_athlete(request, db)  # exige login
+    if not strava_api.is_configured():
+        return RedirectResponse(url="/importar?strava=erro", status_code=303)
+    state = secrets.token_hex(16)
+    request.session["strava_state"] = state
+    url = strava_api.authorize_url(_strava_redirect_uri(request), state)
+    return RedirectResponse(url=url, status_code=303)
+
+
+@app.get("/strava/callback")
+def strava_callback(request: Request, db: Session = Depends(get_db),
+                    code: Optional[str] = None, state: Optional[str] = None,
+                    error: Optional[str] = None):
+    athlete = get_active_athlete(request, db)
+    if error or not code or state != request.session.get("strava_state"):
+        return RedirectResponse(url="/importar?strava=erro", status_code=303)
+    request.session.pop("strava_state", None)
+    try:
+        tok = strava_api.exchange_code(code)
+        athlete.strava_access_token = tok["access_token"]
+        athlete.strava_refresh_token = tok["refresh_token"]
+        athlete.strava_expires_at = int(tok["expires_at"])
+        sa = tok.get("athlete") or {}
+        if sa.get("id"):
+            athlete.strava_athlete_id = str(sa["id"])
+        db.commit()
+    except Exception:
+        return RedirectResponse(url="/importar?strava=erro", status_code=303)
+    return RedirectResponse(url="/importar?strava=conectado", status_code=303)
+
+
+def _strava_valid_token(athlete: Athlete, db: Session) -> Optional[str]:
+    """Garante um access token válido, renovando pelo refresh token se expirou."""
+    if not athlete.strava_refresh_token:
+        return None
+    if athlete.strava_expires_at and athlete.strava_expires_at - 60 > int(time.time()):
+        return athlete.strava_access_token
+    tok = strava_api.refresh_access_token(athlete.strava_refresh_token)
+    athlete.strava_access_token = tok["access_token"]
+    athlete.strava_refresh_token = tok["refresh_token"]
+    athlete.strava_expires_at = int(tok["expires_at"])
+    db.commit()
+    return athlete.strava_access_token
+
+
+@app.post("/strava/importar", response_class=HTMLResponse)
+def strava_import(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    if not athlete.strava_access_token:
+        return RedirectResponse(url="/importar", status_code=303)
+    try:
+        token = _strava_valid_token(athlete, db)
+        parsed = strava_api.fetch_activities(token)
+    except Exception:
+        return templates.TemplateResponse(
+            "import.html",
+            _import_ctx(request, athlete, db,
+                        strava_error="Falha ao buscar atividades no Strava. Tente de novo."),
+        )
+    inserted, skipped_dup, by_sport = _insert_parsed_workouts(db, athlete, parsed)
+    return templates.TemplateResponse(
+        "import.html",
+        _import_ctx(request, athlete, db, strava_result={
+            "total": len(parsed), "inserted": inserted,
+            "skipped_dup": skipped_dup, "by_sport": by_sport,
+        }),
+    )
+
+
+@app.post("/strava/desconectar")
+def strava_disconnect(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    athlete.strava_access_token = None
+    athlete.strava_refresh_token = None
+    athlete.strava_expires_at = None
+    athlete.strava_athlete_id = None
+    db.commit()
+    return RedirectResponse(url="/importar", status_code=303)
 
 
 @app.post("/importar", response_class=HTMLResponse)
@@ -1831,11 +1938,8 @@ async def import_upload(
 
     if len(content) > 10 * 1024 * 1024:  # 10 MB
         result = {"error": "Arquivo maior que 10 MB. Suba um CSV menor."}
-        return templates.TemplateResponse(
-            "import.html",
-            {"request": request, "athlete": athlete,
-             "athletes": get_all_athletes(db), "result": result},
-        )
+        return templates.TemplateResponse("import.html",
+            _import_ctx(request, athlete, db, result=result))
 
     parsed = parse_strava_csv(content)
     if not parsed.detected_columns.get("date") or not parsed.detected_columns.get("type"):
@@ -1844,11 +1948,8 @@ async def import_upload(
                       "no CSV. Confirma que é o activities.csv do export oficial do Strava?"),
             "headers_found": list(parsed.detected_columns.values()) or None,
         }
-        return templates.TemplateResponse(
-            "import.html",
-            {"request": request, "athlete": athlete,
-             "athletes": get_all_athletes(db), "result": result},
-        )
+        return templates.TemplateResponse("import.html",
+            _import_ctx(request, athlete, db, result=result))
 
     inserted, skipped_dup, by_sport = _insert_parsed_workouts(db, athlete, parsed.parsed)
 
@@ -1862,11 +1963,8 @@ async def import_upload(
         "by_sport": by_sport,
         "detected_columns": parsed.detected_columns,
     }
-    return templates.TemplateResponse(
-        "import.html",
-        {"request": request, "athlete": athlete,
-         "athletes": get_all_athletes(db), "result": result},
-    )
+    return templates.TemplateResponse("import.html",
+        _import_ctx(request, athlete, db, result=result))
 
 
 # ------------- config (redirect legado) -------------

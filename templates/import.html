@@ -4,9 +4,51 @@
 <header class="page-header">
     <div>
         <h1 class="page-title">Importar do Strava</h1>
-        <p class="page-sub">Suba o <code>activities.csv</code> do export para trazer os treinos de <strong>{{ athlete.name }}</strong>.</p>
+        <p class="page-sub">Conecte sua conta do Strava ou suba o <code>activities.csv</code> do export.</p>
     </div>
 </header>
+
+{% if strava_error %}<div class="alert alert-error">{{ strava_error }}</div>{% endif %}
+{% if strava_result %}
+<div class="alert alert-success">
+    <strong>{{ strava_result.inserted }} treino{{ 's' if strava_result.inserted != 1 else '' }} importado{{ 's' if strava_result.inserted != 1 else '' }}</strong>
+    do Strava · {{ strava_result.total }} atividade{{ 's' if strava_result.total != 1 else '' }} lida{{ 's' if strava_result.total != 1 else '' }}.
+    <ul class="result-list">
+        {% for sp, lbl in [('corrida','Corrida'),('natacao','Natação'),('musculacao','Musculação'),('trilha','Trilha'),('bike','Bike'),('outro','Outro')] %}
+        {% if strava_result.by_sport.get(sp) %}<li>{{ lbl }}: {{ strava_result.by_sport[sp] }}</li>{% endif %}
+        {% endfor %}
+        {% if strava_result.skipped_dup %}<li class="muted">{{ strava_result.skipped_dup }} duplicado{{ 's' if strava_result.skipped_dup != 1 else '' }} ignorado{{ 's' if strava_result.skipped_dup != 1 else '' }}</li>{% endif %}
+    </ul>
+    <p style="margin: 12px 0 0;"><a href="/" class="btn-primary btn-small">Ver dashboard</a></p>
+</div>
+{% endif %}
+
+{% if strava_configured %}
+<section class="panel-section">
+    <div class="strava-card">
+        {% if strava_connected %}
+        <div class="strava-status">
+            <span class="strava-dot"></span> Conta do Strava conectada
+        </div>
+        <p class="hint">Importe seus treinos com um clique. Duplicatas são ignoradas — pode repetir sem medo.</p>
+        <div class="strava-actions">
+            <form method="post" action="/strava/importar">
+                <button type="submit" class="btn-strava">Importar do Strava agora</button>
+            </form>
+            <form method="post" action="/strava/desconectar" onsubmit="return confirm('Desconectar sua conta do Strava?');">
+                <button type="submit" class="btn-ghost btn-small">Desconectar</button>
+            </form>
+        </div>
+        {% else %}
+        <p class="hint" style="margin:0 0 12px;">Conecte sua conta e traga os treinos automaticamente, sem exportar arquivo.</p>
+        <a href="/strava/conectar" class="btn-strava">Conectar com o Strava</a>
+        {% endif %}
+        <p class="strava-powered">Powered by Strava</p>
+    </div>
+</section>
+
+<div class="or-divider"><span>ou suba o arquivo CSV</span></div>
+{% endif %}
 
 {% if result %}
     {% if result.error %}

@@ -1947,3 +1947,43 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 
 .period-share-bar { display: flex; justify-content: center; margin: 0 0 18px; }
 .period-share-bar .btn-small { justify-content: center; }
+
+/* ---------- Strava ---------- */
+.strava-card {
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 14px;
+    padding: 20px;
+    text-align: center;
+}
+.btn-strava {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    background: #fc4c02;
+    color: #fff;
+    border: none;
+    border-radius: 10px;
+    padding: 13px 22px;
+    font: inherit;
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+    transition: filter .15s;
+}
+.btn-strava:hover { filter: brightness(1.08); }
+.strava-status {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-weight: 600; color: var(--text); margin-bottom: 4px;
+}
+.strava-dot { width: 10px; height: 10px; border-radius: 50%; background: #fc4c02; box-shadow: 0 0 8px #fc4c02; }
+.strava-actions { display: flex; gap: 10px; justify-content: center; align-items: center; flex-wrap: wrap; }
+.strava-powered { color: var(--muted); font-size: 0.72rem; letter-spacing: 0.5px; margin: 14px 0 0; text-transform: uppercase; }
+.or-divider {
+    display: flex; align-items: center; gap: 12px;
+    color: var(--muted); font-size: 0.85rem; margin: 22px 0;
+}
+.or-divider::before, .or-divider::after {
+    content: ""; flex: 1; height: 1px; background: var(--border);
+}

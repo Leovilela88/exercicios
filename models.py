@@ -21,6 +21,11 @@ class Athlete(Base):
     friend_code = Column(String(12), unique=True, index=True, nullable=True)
     is_admin = Column(Integer, nullable=False, default=0)  # 0/1
     last_seen_at = Column(DateTime, nullable=True)
+    # --- integração Strava ---
+    strava_athlete_id = Column(String(32), nullable=True)
+    strava_access_token = Column(String(255), nullable=True)
+    strava_refresh_token = Column(String(255), nullable=True)
+    strava_expires_at = Column(Integer, nullable=True)  # epoch (segundos)
 
 
 class Friendship(Base):
