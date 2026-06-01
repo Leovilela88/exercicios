@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% from "_macros.html" import bicon %}
+{% block title %}Desafios - MultiFit{% endblock %}
+
+{% macro challenge_card(item) %}
+{% set ch = item.ch %}
+<article class="challenge-card {% if item.done %}is-done{% endif %}">
+    <div class="challenge-head">
+        <span class="challenge-icon" style="color: {{ ch.color }}; background: {{ ch.color }}1f;">{{ bicon(ch.icon) }}</span>
+        <div class="challenge-title">
+            <strong>{{ ch.title }}</strong>
+            <span class="challenge-sub">{{ 'no mês' if ch.period == 'month' else 'na semana' }}</span>
+        </div>
+        {% if item.done %}<span class="challenge-badge">{{ bicon('check') }} Concluído</span>{% endif %}
+    </div>
+
+    {% if item.joined %}
+    <div class="challenge-progress">
+        <div class="goal-bar"><div class="goal-fill" style="width: {{ item.pct }}%; background: {{ ch.color }};"></div></div>
+        <div class="challenge-nums">
+            <span><strong>{{ item.progress_fmt }}</strong> / {{ item.target_fmt }} {{ ch.unit }}</span>
+            <span class="challenge-pct">{{ item.pct }}%</span>
+        </div>
+    </div>
+    <form method="post" action="/desafios/{{ ch.code }}/sair" class="challenge-action">
+        <button type="submit" class="btn-ghost btn-small">Abandonar</button>
+    </form>
+    {% else %}
+    <p class="challenge-meta">Meta: <strong>{{ item.target_fmt }} {{ ch.unit }}</strong></p>
+    <form method="post" action="/desafios/aceitar" class="challenge-action">
+        <input type="hidden" name="code" value="{{ ch.code }}" />
+        <button type="submit" class="btn-primary btn-small">Aceitar desafio</button>
+    </form>
+    {% endif %}
+</article>
+{% endmacro %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Desafios</h1>
+        <p class="page-sub">Aceite um desafio e acompanhe a barra encher conforme você treina.</p>
+    </div>
+    <a href="/conquistas" class="btn-ghost btn-small">{{ bicon('trophy') }} Troféus</a>
+</header>
+
+<section class="panel-section">
+    <div class="section-head"><h2>Da semana</h2></div>
+    <div class="challenge-grid">
+        {% for item in weekly %}{{ challenge_card(item) }}{% endfor %}
+    </div>
+</section>
+
+<section class="panel-section">
+    <div class="section-head"><h2>Do mês</h2></div>
+    <div class="challenge-grid">
+        {% for item in monthly %}{{ challenge_card(item) }}{% endfor %}
+    </div>
+</section>
+{% endblock %}

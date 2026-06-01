@@ -39,6 +39,17 @@ class Friendship(Base):
     created_at = Column(DateTime, server_default=func.now())
 
 
+class ChallengeJoin(Base):
+    """Desafio aceito por um atleta num período (semana/mês)."""
+    __tablename__ = "challenge_joins"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    code = Column(String(40), nullable=False)
+    period_key = Column(String(12), nullable=False)  # ex: 2026-06 ou 2026-W23
+    created_at = Column(DateTime, server_default=func.now())
+
+
 class Workout(Base):
     __tablename__ = "workouts"
 

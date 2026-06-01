@@ -25,11 +25,12 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label, workout_share
-from models import (Athlete, ExerciseEntry, Friendship, Goal, Race, Routine,
-                    RoutineItem, Settings, WeightLog, Workout)
+from models import (Athlete, ChallengeJoin, ExerciseEntry, Friendship, Goal, Race,
+                    Routine, RoutineItem, Settings, WeightLog, Workout)
 from strava_import import parse_strava_csv
 import achievements
 import auth
+import challenges
 import stats
 import strava_api
 
@@ -1591,6 +1592,57 @@ def achievements_page(request: Request, db: Session = Depends(get_db)):
             "badges": badges,
         },
     )
+
+
+# ------------- desafios -------------
+
+@app.get("/desafios", response_class=HTMLResponse)
+def challenges_page(request: Request, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    today = today_br()
+    joins = db.query(ChallengeJoin).filter(ChallengeJoin.athlete_id == athlete.id).all()
+    joined = {(j.code, j.period_key) for j in joins}
+    data = challenges.build(db, athlete.id, today, joined)
+    return templates.TemplateResponse(
+        "challenges.html",
+        {
+            "request": request,
+            "athlete": athlete,
+            "weekly": data["weekly"],
+            "monthly": data["monthly"],
+        },
+    )
+
+
+@app.post("/desafios/aceitar")
+def challenge_accept(request: Request, code: str = Form(...),
+                     db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    ch = challenges.CHALLENGES_BY_CODE.get(code)
+    if ch:
+        pk = challenges.period_key(ch.period, today_br())
+        exists = db.query(ChallengeJoin).filter(
+            ChallengeJoin.athlete_id == athlete.id,
+            ChallengeJoin.code == code, ChallengeJoin.period_key == pk,
+        ).first()
+        if not exists:
+            db.add(ChallengeJoin(athlete_id=athlete.id, code=code, period_key=pk))
+            db.commit()
+    return RedirectResponse(url="/desafios", status_code=303)
+
+
+@app.post("/desafios/{code}/sair")
+def challenge_leave(request: Request, code: str, db: Session = Depends(get_db)):
+    athlete = get_active_athlete(request, db)
+    ch = challenges.CHALLENGES_BY_CODE.get(code)
+    if ch:
+        pk = challenges.period_key(ch.period, today_br())
+        db.query(ChallengeJoin).filter(
+            ChallengeJoin.athlete_id == athlete.id,
+            ChallengeJoin.code == code, ChallengeJoin.period_key == pk,
+        ).delete(synchronize_session=False)
+        db.commit()
+    return RedirectResponse(url="/desafios", status_code=303)
 
 
 # ------------- peso -------------
