@@ -247,13 +247,16 @@
     {% endif %}
 </section>
 
-{# --- Desafios aceitos --- #}
-{% if active_challenges %}
+{# --- Desafios --- #}
 <section class="panel-section">
     <div class="section-head">
         <h2>Desafios</h2>
-        <a class="section-link" href="/desafios">ver todos →</a>
+        <a class="btn-primary btn-small" href="/desafios">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg>
+            {% if active_challenges %}Ver desafios{% else %}Aceitar um desafio{% endif %}
+        </a>
     </div>
+    {% if active_challenges %}
     <div class="goals-mini">
         {% for it in active_challenges %}
         <div class="goal-mini {% if it.done %}goal-done{% endif %}">
@@ -268,8 +271,10 @@
         </div>
         {% endfor %}
     </div>
+    {% else %}
+    <p class="empty">Topa um desafio? Correr 100&nbsp;km no mês, nadar 10&nbsp;km na semana… <a href="/desafios">aceite um</a> e veja a barra encher conforme você treina.</p>
+    {% endif %}
 </section>
-{% endif %}
 
 {# --- Recordes pessoais --- #}
 <section class="panel-section">
