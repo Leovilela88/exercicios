@@ -382,21 +382,41 @@
     }
 
     // ---------------------------------------------------------------- ações
-    async function doShare() {
-        const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+    function dataUrlToFile(url, name) {
+        const [head, b64] = url.split(',');
+        const mime = (head.match(/:(.*?);/) || [])[1] || 'image/png';
+        const bin = atob(b64);
+        const arr = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+        return new File([arr], name, { type: mime });
+    }
+
+    function download(url, name) {
+        const a = document.createElement('a');
+        a.href = url; a.download = name; a.click();
+    }
+
+    // Importante: gera a imagem de forma SÍNCRONA (toDataURL) e chama
+    // navigator.share na mesma "tarefa" do clique — o Safari/iOS cancela o
+    // compartilhamento se houver um await entre o gesto e o share.
+    function doShare() {
         const name = payload.type === 'badge' ? 'conquista-multifit.png' : 'treino-multifit.png';
-        const file = new File([blob], name, { type: 'image/png' });
         const text = payload.type === 'badge'
             ? `Desbloqueei a conquista "${payload.title}" no MultiFit! 💪`
             : `Treino de ${payload.sportLabel} registrado no MultiFit! 💪`;
-        if (navigator.canShare && navigator.canShare({ files: [file] })) {
-            try { await navigator.share({ files: [file], title: 'MultiFit', text }); return; }
-            catch (_) { return; }
+        let dataUrl;
+        try { dataUrl = canvas.toDataURL('image/png'); }
+        catch (_) { return; }
+        const file = dataUrlToFile(dataUrl, name);
+        const data = { files: [file], title: 'MultiFit', text };
+        if (navigator.canShare && navigator.canShare(data)) {
+            navigator.share(data).catch((err) => {
+                // se o usuário não cancelou, oferece o download como alternativa
+                if (err && err.name !== 'AbortError') download(dataUrl, name);
+            });
+            return;
         }
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = name;
-        a.click();
+        download(dataUrl, name);
     }
 
     function open(data) {

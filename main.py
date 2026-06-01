@@ -129,6 +129,7 @@ templates = Jinja2Templates(directory="templates")
 # Helpers disponíveis nos templates Jinja
 templates.env.globals["pace"] = pace
 templates.env.globals["sport_label"] = sport_label
+templates.env.globals["workout_share"] = workout_share
 templates.env.globals["bmi"] = bmi
 templates.env.globals["bmi_category"] = bmi_category
 
