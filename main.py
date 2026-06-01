@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta
 from typing import Optional
+from zoneinfo import ZoneInfo
 
 import io
 import os
@@ -30,6 +31,19 @@ import auth
 import stats
 
 SPORTS = ("corrida", "natacao", "musculacao", "trilha", "bike", "outro")
+
+# Fuso do Brasil — o servidor roda em UTC, então datas/horas seguem São Paulo.
+BR_TZ = ZoneInfo("America/Sao_Paulo")
+
+
+def now_br() -> datetime:
+    """Horário atual no fuso do Brasil (naive, para gravar/comparar no banco)."""
+    return datetime.now(BR_TZ).replace(tzinfo=None)
+
+
+def today_br() -> date:
+    """Data de hoje no fuso do Brasil."""
+    return datetime.now(BR_TZ).date()
 
 
 def _init_db() -> None:
@@ -228,7 +242,7 @@ def friend_ids(db: Session, athlete_id: int) -> list[int]:
 
 
 def _touch_last_seen(db: Session, athlete: Athlete) -> None:
-    athlete.last_seen_at = datetime.utcnow()
+    athlete.last_seen_at = now_br()
     db.commit()
 
 
@@ -404,8 +418,8 @@ def admin_page(request: Request, db: Session = Depends(get_db)):
         db.query(Athlete).filter(Athlete.password_hash.isnot(None))
         .order_by(Athlete.created_at.desc().nullslast(), Athlete.id.desc()).all()
     )
-    cutoff = datetime.utcnow() - timedelta(minutes=30)
-    today_start = datetime.utcnow() - timedelta(hours=24)
+    cutoff = now_br() - timedelta(minutes=30)
+    today_start = now_br() - timedelta(hours=24)
     online = sum(1 for a in accounts if a.last_seen_at and a.last_seen_at >= cutoff)
     active_24h = sum(1 for a in accounts if a.last_seen_at and a.last_seen_at >= today_start)
     return templates.TemplateResponse(
@@ -451,7 +465,8 @@ def _resolve_range(
     if key == "1w":
         start = today - timedelta(days=6)
     elif key == "1m":
-        start = today - timedelta(days=29)
+        # "1 mês" = últimos 31 dias, pra um mês de 31 dias não deixar nenhum de fora.
+        start = today - timedelta(days=31)
     elif key == "3m":
         start = today - timedelta(days=89)
     elif key == "6m":
@@ -492,7 +507,7 @@ def dashboard(
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
-    today = date.today()
+    today = today_br()
     earliest = (
         db.query(func.min(Workout.date))
         .filter(Workout.athlete_id == athlete.id)
@@ -728,7 +743,7 @@ def _parse_workout_form(
     try:
         d = date.fromisoformat(workout_date)
     except ValueError:
-        d = date.today()
+        d = today_br()
     dist_m_val = _to_float(distance_m)
     dist = (dist_m_val / 1000.0) if dist_m_val else None
     dur = _to_float(duration_min)
@@ -748,7 +763,7 @@ def new_form(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "athlete": athlete,
             "athletes": get_all_athletes(db),
-            "today": date.today().isoformat(),
+            "today": today_br().isoformat(),
             "workout": None,
             "action": "/novo",
         },
@@ -788,7 +803,7 @@ def edit_form(request: Request, workout_id: int, db: Session = Depends(get_db)):
             "request": request,
             "athlete": athlete,
             "athletes": get_all_athletes(db),
-            "today": date.today().isoformat(),
+            "today": today_br().isoformat(),
             "workout": w,
             "action": f"/treino/{w.id}/editar",
         },
@@ -1095,7 +1110,7 @@ def routine_train(request: Request, routine_id: int, db: Session = Depends(get_d
         return RedirectResponse(url="/musculacao", status_code=303)
     items = (db.query(RoutineItem).filter(RoutineItem.routine_id == r.id)
              .order_by(RoutineItem.position, RoutineItem.id).all())
-    today = date.today()
+    today = today_br()
     # duração estimada: ~3 min por série (ou 45 min se não houver séries)
     total_sets = sum(it.sets or 0 for it in items)
     dur = total_sets * 3 if total_sets else 45
@@ -1294,7 +1309,7 @@ GOAL_PERIODS = ("week", "month")
 @app.get("/metas", response_class=HTMLResponse)
 def goals_page(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
-    today = date.today()
+    today = today_br()
     goals = (
         db.query(Goal).filter(Goal.athlete_id == athlete.id)
         .order_by(Goal.id).all()
@@ -1372,7 +1387,7 @@ def _fmt_minutes(minutes: float) -> str:
 @app.get("/provas", response_class=HTMLResponse)
 def races_page(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
-    today = date.today()
+    today = today_br()
     races = (
         db.query(Race).filter(Race.athlete_id == athlete.id)
         .order_by(Race.date).all()
@@ -1458,7 +1473,7 @@ def ranking_page(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
     ids = friend_ids(db, athlete.id)
     athletes = db.query(Athlete).filter(Athlete.id.in_(ids)).all()
-    today = date.today()
+    today = today_br()
     rows = stats.ranking(db, athletes, today)
     return templates.TemplateResponse(
         "ranking.html",
@@ -1511,7 +1526,7 @@ def weight_page(request: Request, db: Session = Depends(get_db)):
             "logs": list(reversed(logs)),
             "series": series,
             "delta": delta,
-            "today": date.today().isoformat(),
+            "today": today_br().isoformat(),
         },
     )
 
@@ -1528,7 +1543,7 @@ def weight_create(
     try:
         d = date.fromisoformat(log_date)
     except ValueError:
-        d = date.today()
+        d = today_br()
     if w and w > 0:
         # um registro por dia: atualiza se já existe
         existing = db.query(WeightLog).filter(
