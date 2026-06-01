@@ -44,6 +44,12 @@ def gen_friend_code() -> str:
     return f"MF-{body}"
 
 
+def gen_temp_password() -> str:
+    """Senha temporária legível (sem caracteres ambíguos) — para o admin
+    ajudar quem perdeu a senha, enquanto não há recuperação por e-mail."""
+    return "".join(secrets.choice(_CODE_ALPHABET) for _ in range(8)).lower()
+
+
 def normalize_username(username: str) -> str:
     return (username or "").strip().lower()
 

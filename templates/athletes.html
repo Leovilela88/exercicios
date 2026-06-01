@@ -96,4 +96,21 @@
         </form>
     </article>
 </section>
+
+<section class="form" style="max-width: 520px; margin-top: 24px;">
+    <h2 class="form-title">Alterar senha</h2>
+    {% if pwd == 'ok' %}<div class="alert alert-success">Senha alterada com sucesso.</div>
+    {% elif pwd == 'erro' %}<div class="alert alert-error">Senha atual incorreta ou a nova é muito curta (mín. 4).</div>{% endif %}
+    <form method="post" action="/atletas/senha">
+        <label><span>Senha atual</span>
+            <input type="password" name="current" required autocomplete="current-password" />
+        </label>
+        <label><span>Nova senha</span>
+            <input type="password" name="new" required minlength="4" autocomplete="new-password" />
+        </label>
+        <div class="actions">
+            <button type="submit" class="btn-primary btn-small">Alterar senha</button>
+        </div>
+    </form>
+</section>
 {% endblock %}

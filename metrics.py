@@ -94,12 +94,15 @@ EXTRA_DEFS = [
 ]
 
 
-def extra_metrics_list(extra: Optional[dict]) -> list:
-    """Transforma o dict de extras em lista de {icon, value, label} pra exibir."""
+def extra_metrics_list(extra: Optional[dict], exclude=()) -> list:
+    """Transforma o dict de extras em lista de {icon, value, label} pra exibir.
+    `exclude` = chaves a omitir (ex: cadência no card de compartilhar)."""
     if not extra:
         return []
     out = []
     for key, icon, label, fmt in EXTRA_DEFS:
+        if key in exclude:
+            continue
         v = extra.get(key)
         if v is not None:
             out.append({"icon": icon, "value": fmt.format(v), "label": label})
@@ -142,6 +145,6 @@ def workout_share(sport, distance_km, duration_min, calories,
         "dateLabel": date_label,
         "color": color,
         "metrics": metrics,
-        "extras": extra_metrics_list(extra),
+        "extras": extra_metrics_list(extra, exclude={"cadence"}),
         "route": polyline or None,
     }

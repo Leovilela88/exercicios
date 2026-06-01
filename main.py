@@ -473,7 +473,8 @@ def friends_remove(request: Request, fid: int, db: Session = Depends(get_db)):
 # ------------- admin -------------
 
 @app.get("/admin", response_class=HTMLResponse)
-def admin_page(request: Request, db: Session = Depends(get_db)):
+def admin_page(request: Request, db: Session = Depends(get_db),
+               reset_name: Optional[str] = None, reset_pwd: Optional[str] = None):
     me = get_active_athlete(request, db)
     if not me.is_admin:
         raise HTTPException(status_code=403)
@@ -490,8 +491,24 @@ def admin_page(request: Request, db: Session = Depends(get_db)):
         {
             "request": request, "athlete": me, "accounts": accounts,
             "total": len(accounts), "online": online, "active_24h": active_24h,
+            "reset_name": reset_name, "reset_pwd": reset_pwd,
         },
     )
+
+
+@app.post("/admin/{aid}/redefinir-senha")
+def admin_reset_password(request: Request, aid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    if not me.is_admin:
+        raise HTTPException(status_code=403)
+    target = db.query(Athlete).filter(Athlete.id == aid).first()
+    if not target or not target.password_hash:
+        return RedirectResponse(url="/admin", status_code=303)
+    temp = auth.gen_temp_password()
+    target.password_hash = auth.hash_password(temp)
+    db.commit()
+    return RedirectResponse(
+        url=f"/admin?reset_name={target.name}&reset_pwd={temp}", status_code=303)
 
 
 def _current_streak(active_dates: set[date], today: date) -> int:
@@ -1720,7 +1737,8 @@ def weight_delete(request: Request, log_id: int, db: Session = Depends(get_db)):
 # ------------- atletas -------------
 
 @app.get("/atletas", response_class=HTMLResponse)
-def athletes_page(request: Request, db: Session = Depends(get_db)):
+def athletes_page(request: Request, db: Session = Depends(get_db),
+                  pwd: Optional[str] = None):
     active = get_active_athlete(request, db)
     return templates.TemplateResponse(
         "athletes.html",
@@ -1728,8 +1746,21 @@ def athletes_page(request: Request, db: Session = Depends(get_db)):
             "request": request,
             "athlete": active,
             "db_dialect": engine.dialect.name,
+            "pwd": pwd,  # ok | erro
         },
     )
+
+
+@app.post("/atletas/senha")
+def change_password(request: Request, current: str = Form(...),
+                    new: str = Form(...), db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    if (not me.password_hash or not auth.verify_password(current, me.password_hash)
+            or len(new) < 4):
+        return RedirectResponse(url="/atletas?pwd=erro", status_code=303)
+    me.password_hash = auth.hash_password(new)
+    db.commit()
+    return RedirectResponse(url="/atletas?pwd=ok", status_code=303)
 
 
 @app.post("/atletas/{aid}/edit")

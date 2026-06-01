@@ -8,6 +8,13 @@
     </div>
 </header>
 
+{% if reset_pwd %}
+<div class="alert alert-success">
+    Senha temporária de <strong>{{ reset_name }}</strong>: <code style="font-size:1.1rem; font-weight:700; letter-spacing:1px; background:rgba(0,0,0,0.3); padding:2px 8px; border-radius:6px;">{{ reset_pwd }}</code><br>
+    Envie pra ela entrar e peça pra trocar depois em <strong>Meu perfil → Alterar senha</strong>.
+</div>
+{% endif %}
+
 <section class="cards" style="margin-bottom: 24px;">
     <div class="card"><div class="card-label">Contas criadas</div><div class="card-value">{{ total }}</div></div>
     <div class="card"><div class="card-label">Ativas (24h)</div><div class="card-value">{{ active_24h }}</div></div>
@@ -26,6 +33,7 @@
                 <th>Admin</th>
                 <th>Criada em</th>
                 <th>Visto por último</th>
+                <th></th>
             </tr>
             </thead>
             <tbody>
@@ -37,6 +45,12 @@
                 <td>{{ "sim" if a.is_admin else "—" }}</td>
                 <td>{{ a.created_at.strftime('%d/%m/%y') if a.created_at else "—" }}</td>
                 <td>{{ a.last_seen_at.strftime('%d/%m/%y %H:%M') if a.last_seen_at else "—" }}</td>
+                <td class="row-actions">
+                    <form method="post" action="/admin/{{ a.id }}/redefinir-senha"
+                          onsubmit="return confirm('Gerar uma nova senha temporária para {{ a.name }}?');">
+                        <button type="submit" class="btn-ghost btn-small">Redefinir senha</button>
+                    </form>
+                </td>
             </tr>
             {% endfor %}
             </tbody>
