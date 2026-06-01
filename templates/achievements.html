@@ -22,6 +22,12 @@
             <div class="badge-icon" style="color: {{ item.badge.color }}; background: {{ item.badge.color }}1f;">{{ bicon(item.badge.icon) }}</div>
             <div class="badge-title">{{ item.badge.title }}</div>
             <div class="badge-desc">{{ item.badge.desc }}</div>
+            <button type="button" class="badge-share"
+                    data-title="{{ item.badge.title }}" data-desc="{{ item.badge.desc }}"
+                    data-color="{{ item.badge.color }}">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+                Compartilhar
+            </button>
         </article>
         {% endfor %}
     </div>
@@ -44,4 +50,122 @@
     </div>
 </section>
 {% endif %}
+
+<canvas id="share-canvas" width="1080" height="1080" hidden></canvas>
+<script>
+    (function () {
+        const ATHLETE = {{ athlete.name|tojson }};
+        const canvas = document.getElementById('share-canvas');
+        const ctx = canvas.getContext('2d');
+        const W = 1080, H = 1080;
+
+        // Pré-carrega o escudo do MultiFit
+        const logo = new Image();
+        logo.crossOrigin = 'anonymous';
+        let logoReady = false;
+        logo.onload = () => { logoReady = true; };
+        logo.src = '/static/logo-icon.png';
+
+        function roundRect(x, y, w, h, r) {
+            ctx.beginPath();
+            ctx.moveTo(x + r, y);
+            ctx.arcTo(x + w, y, x + w, y + h, r);
+            ctx.arcTo(x + w, y + h, x, y + h, r);
+            ctx.arcTo(x, y + h, x, y, r);
+            ctx.arcTo(x, y, x + w, y, r);
+            ctx.closePath();
+        }
+
+        function draw(title, desc, color) {
+            // fundo
+            const g = ctx.createLinearGradient(0, 0, W, H);
+            g.addColorStop(0, '#0b1530');
+            g.addColorStop(1, '#050810');
+            ctx.fillStyle = g;
+            ctx.fillRect(0, 0, W, H);
+
+            // brilho da cor da conquista no topo
+            const glow = ctx.createRadialGradient(W/2, 300, 40, W/2, 300, 520);
+            glow.addColorStop(0, color + '33');
+            glow.addColorStop(1, '#00000000');
+            ctx.fillStyle = glow;
+            ctx.fillRect(0, 0, W, H);
+
+            ctx.textAlign = 'center';
+
+            // logo (escudo)
+            if (logoReady) {
+                const lw = 200, lh = logo.height * (lw / logo.width);
+                ctx.drawImage(logo, W/2 - lw/2, 150, lw, lh);
+            }
+
+            // selo da conquista
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.arc(W/2, 470, 18, 0, Math.PI * 2);
+            ctx.fill();
+
+            // "CONQUISTA DESBLOQUEADA"
+            ctx.fillStyle = color;
+            ctx.font = '600 34px Inter, sans-serif';
+            ctx.fillText('CONQUISTA DESBLOQUEADA', W/2, 560);
+
+            // título
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '800 88px Inter, sans-serif';
+            ctx.fillText(title, W/2, 670);
+
+            // descrição (quebra se longa)
+            ctx.fillStyle = '#cbd5e1';
+            ctx.font = '400 40px Inter, sans-serif';
+            const words = desc.split(' ');
+            let line = '', y = 760;
+            for (const w of words) {
+                if (ctx.measureText(line + w).width > 820 && line) {
+                    ctx.fillText(line.trim(), W/2, y); line = ''; y += 56;
+                }
+                line += w + ' ';
+            }
+            ctx.fillText(line.trim(), W/2, y);
+
+            // divisor
+            ctx.strokeStyle = 'rgba(148,163,184,0.25)';
+            ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.moveTo(W/2 - 220, 920); ctx.lineTo(W/2 + 220, 920); ctx.stroke();
+
+            // atleta + marca
+            ctx.fillStyle = '#e2e8f0';
+            ctx.font = '700 38px Inter, sans-serif';
+            ctx.fillText(ATHLETE, W/2, 985);
+            ctx.fillStyle = '#60a5fa';
+            ctx.font = '500 32px Inter, sans-serif';
+            ctx.fillText('MultiFit · multifit.app.br', W/2, 1035);
+        }
+
+        async function share(title, desc, color) {
+            try { await document.fonts.ready; } catch (_) {}
+            draw(title, desc, color);
+            const blob = await new Promise(r => canvas.toBlob(r, 'image/png'));
+            const file = new File([blob], 'conquista-multifit.png', { type: 'image/png' });
+            const text = `Desbloqueei a conquista "${title}" no MultiFit! 💪`;
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: 'MultiFit', text });
+                    return;
+                } catch (_) { return; }
+            }
+            // fallback: baixar a imagem
+            const a = document.createElement('a');
+            a.href = URL.createObjectURL(blob);
+            a.download = 'conquista-multifit.png';
+            a.click();
+        }
+
+        document.querySelectorAll('.badge-share').forEach((btn) => {
+            btn.addEventListener('click', () => {
+                share(btn.dataset.title, btn.dataset.desc, btn.dataset.color);
+            });
+        });
+    })();
+</script>
 {% endblock %}
