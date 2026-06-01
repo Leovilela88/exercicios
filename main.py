@@ -182,7 +182,11 @@ PUBLIC_PREFIXES = ("/static", "/sw.js", "/offline", "/manifest.webmanifest",
 async def require_login(request: Request, call_next):
     path = request.url.path
     if any(path == p or path.startswith(p + "/") or path.startswith(p) for p in PUBLIC_PREFIXES):
-        return await call_next(request)
+        resp = await call_next(request)
+        # cache curto nos estáticos: evita o Cloudflare prender versão antiga por horas
+        if path.startswith("/static"):
+            resp.headers["Cache-Control"] = "public, max-age=300"
+        return resp
     aid = request.session.get("athlete_id")
     if not aid:
         return RedirectResponse(url="/entrar", status_code=303)
