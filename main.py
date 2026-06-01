@@ -175,7 +175,8 @@ templates = Jinja2Templates(directory="templates")
 
 # Caminhos que não exigem login.
 PUBLIC_PREFIXES = ("/static", "/sw.js", "/offline", "/manifest.webmanifest",
-                   "/entrar", "/registrar", "/sair", "/primeiro-acesso", "/healthz")
+                   "/entrar", "/registrar", "/sair", "/primeiro-acesso", "/healthz",
+                   "/strava/status")
 
 
 @app.middleware("http")
@@ -1847,6 +1848,18 @@ def import_page(request: Request, db: Session = Depends(get_db),
 def _strava_redirect_uri(request: Request) -> str:
     # o domínio precisa bater com o "Authorization Callback Domain" no Strava
     return f"https://{request.url.hostname}/strava/callback"
+
+
+@app.get("/strava/status")
+def strava_status():
+    """Diagnóstico (sem segredos): o app está enxergando as credenciais?"""
+    cid = strava_api.client_id()
+    return JSONResponse({
+        "configured": strava_api.is_configured(),
+        "client_id_set": bool(cid),
+        "client_id_preview": (cid[:3] + "…") if cid else None,
+        "client_secret_set": bool(strava_api.client_secret()),
+    })
 
 
 @app.get("/strava/conectar")
