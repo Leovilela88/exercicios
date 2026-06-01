@@ -74,6 +74,7 @@
             L.circleMarker(pts[0], { radius: 5, color: '#22c55e', fillColor: '#22c55e', fillOpacity: 1 }).addTo(map);
             L.circleMarker(pts[pts.length - 1], { radius: 5, color: '#ef4444', fillColor: '#ef4444', fillOpacity: 1 }).addTo(map);
             map.fitBounds(line.getBounds(), { padding: [24, 24] });
+            setTimeout(() => map.invalidateSize(), 200);
         }
         init();
     })();

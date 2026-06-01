@@ -1,5 +1,5 @@
 // Service worker do Exercícios (PWA). Bump CACHE para forçar atualização.
-const CACHE = 'exercicios-v1';
+const CACHE = 'exercicios-v2';
 const PRECACHE = [
   '/offline',
   '/static/icon.svg',
@@ -29,14 +29,18 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
   const url = new URL(req.url);
 
+  // Requisições de outros domínios (CDNs: Leaflet, Chart.js, mapas, fontes) vão
+  // direto pra rede — o SW não pode devolver resposta "opaca" pra CSS/JS de CDN.
+  if (url.origin !== self.location.origin) return;
+
   // Navegação entre páginas: tenta rede; se cair, mostra a tela offline.
   if (req.mode === 'navigate') {
     e.respondWith(fetch(req).catch(() => caches.match('/offline')));
     return;
   }
 
-  // Estáticos (CSS/ícones) e CDN (Chart.js, fontes): stale-while-revalidate.
-  if (url.pathname.startsWith('/static/') || url.origin !== self.location.origin) {
+  // Estáticos do próprio site (CSS/ícones): stale-while-revalidate.
+  if (url.pathname.startsWith('/static/')) {
     e.respondWith(
       caches.match(req).then((cached) => {
         const network = fetch(req)
