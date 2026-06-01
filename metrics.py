@@ -84,7 +84,7 @@ def _fmt_distance(distance_km: Optional[float]) -> Optional[str]:
 
 
 def workout_share(sport, distance_km, duration_min, calories,
-                  date_label=None, volume=None, ex_count=None) -> dict:
+                  date_label=None, volume=None, ex_count=None, polyline=None) -> dict:
     """Monta o payload do card de compartilhamento de um treino:
     rótulo do esporte, cor de acento e métricas (ícone + valor + rótulo)."""
     label = SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0]
@@ -118,4 +118,5 @@ def workout_share(sport, distance_km, duration_min, calories,
         "dateLabel": date_label,
         "color": color,
         "metrics": metrics,
+        "route": polyline or None,
     }

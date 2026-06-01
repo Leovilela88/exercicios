@@ -900,7 +900,7 @@ def workout_detail(request: Request, workout_id: int, db: Session = Depends(get_
             "share_data": workout_share(
                 w.sport, w.distance_km, w.duration_min, w.calories,
                 date_label=w.date.strftime("%d/%m/%Y"),
-                volume=volume, ex_count=len(exercises),
+                volume=volume, ex_count=len(exercises), polyline=w.route_polyline,
             ),
         },
     )

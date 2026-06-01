@@ -10,10 +10,20 @@
     let photoImg = null;      // Image da foto escolhida (ou null)
     let transparent = false;  // só a base da conquista, fundo transparente
     let offX = 0, offY = 0;   // deslocamento da foto (espaço do canvas)
+    let variants = ['default'];
+    let variantIdx = 0;
+
+    const VARIANT_LABELS = { metrics: 'Métricas', route: 'Rota' };
+
+    function variantsFor(p) {
+        if (p.type === 'workout') return p.route ? ['metrics', 'route'] : ['metrics'];
+        return ['default'];
+    }
+    function currentVariant() { return variants[variantIdx] || variants[0]; }
 
     // ---------------------------------------------------------------- DOM
     let overlay, canvas, ctx, fileInput, photoBtn, photoLabel, transWrap,
-        transInput, dragHint;
+        transInput, dragHint, variantNav, variantDots, variantLabel;
 
     function buildSheet() {
         overlay = document.createElement('div');
@@ -24,6 +34,14 @@
                 <div class="sheet-handle"></div>
                 <div class="share-preview-wrap">
                     <canvas id="mf-share-canvas" width="${W}" height="${H}"></canvas>
+                </div>
+                <div class="share-variants" data-role="variants" hidden>
+                    <button type="button" class="variant-arrow" data-role="prev" aria-label="Anterior">‹</button>
+                    <div class="variant-center">
+                        <span class="variant-label" data-role="variant-label"></span>
+                        <div class="variant-dots" data-role="dots"></div>
+                    </div>
+                    <button type="button" class="variant-arrow" data-role="next" aria-label="Próximo">›</button>
                 </div>
                 <p class="share-hint" data-role="drag" hidden>Arraste a foto para posicionar</p>
                 <label class="share-toggle">
@@ -52,8 +70,13 @@
         transWrap = overlay.querySelector('.share-toggle');
         transInput = overlay.querySelector('[data-role="trans"]');
         dragHint = overlay.querySelector('[data-role="drag"]');
+        variantNav = overlay.querySelector('[data-role="variants"]');
+        variantDots = overlay.querySelector('[data-role="dots"]');
+        variantLabel = overlay.querySelector('[data-role="variant-label"]');
 
         overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+        overlay.querySelector('[data-role="prev"]').addEventListener('click', () => changeVariant(-1));
+        overlay.querySelector('[data-role="next"]').addEventListener('click', () => changeVariant(1));
         photoBtn.addEventListener('click', () => fileInput.click());
         fileInput.addEventListener('change', onPickPhoto);
         transInput.addEventListener('change', () => {
@@ -69,6 +92,23 @@
         const showPhoto = !transparent;
         photoBtn.style.display = showPhoto ? '' : 'none';
         dragHint.hidden = !(showPhoto && photoImg);
+    }
+
+    function changeVariant(dir) {
+        if (variants.length < 2) return;
+        variantIdx = (variantIdx + dir + variants.length) % variants.length;
+        updateVariantNav();
+        render();
+    }
+
+    function updateVariantNav() {
+        if (!variantNav) return;
+        variantNav.hidden = variants.length < 2;
+        if (variants.length < 2) return;
+        variantLabel.textContent = VARIANT_LABELS[currentVariant()] || '';
+        variantDots.innerHTML = variants
+            .map((_, i) => `<span class="variant-dot${i === variantIdx ? ' is-on' : ''}"></span>`)
+            .join('');
     }
 
     // ---------------------------------------------------------------- logo
@@ -276,6 +316,54 @@
         ctx.textAlign = 'center';
     }
 
+    function decodePolyline(str) {
+        let pts = [], i = 0, lat = 0, lng = 0;
+        while (i < str.length) {
+            let b, shift = 0, result = 0;
+            do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lat += (result & 1) ? ~(result >> 1) : (result >> 1);
+            shift = 0; result = 0;
+            do { b = str.charCodeAt(i++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
+            lng += (result & 1) ? ~(result >> 1) : (result >> 1);
+            pts.push([lat / 1e5, lng / 1e5]);
+        }
+        return pts;
+    }
+
+    // Desenha o traçado GPS normalizado dentro de uma caixa (cx centrado).
+    function drawRouteShape(poly, cx, top, maxW, maxH, color) {
+        let pts;
+        try { pts = decodePolyline(poly); } catch (_) { return; }
+        if (!pts || pts.length < 2) return;
+        let minLa = Infinity, maxLa = -Infinity, minLn = Infinity, maxLn = -Infinity;
+        for (const [la, ln] of pts) {
+            if (la < minLa) minLa = la; if (la > maxLa) maxLa = la;
+            if (ln < minLn) minLn = ln; if (ln > maxLn) maxLn = ln;
+        }
+        const midLat = (minLa + maxLa) / 2 * Math.PI / 180;
+        const geoW = Math.max((maxLn - minLn) * Math.cos(midLat), 1e-9);
+        const geoH = Math.max(maxLa - minLa, 1e-9);
+        const scale = Math.min(maxW / geoW, maxH / geoH);
+        const dW = geoW * scale, dH = geoH * scale;
+        const ox = cx - dW / 2, oy = top + (maxH - dH) / 2;
+        const project = ([la, ln]) => [
+            ox + (ln - minLn) * Math.cos(midLat) * scale,
+            oy + (maxLa - la) * scale,
+        ];
+        ctx.save();
+        ctx.lineJoin = 'round'; ctx.lineCap = 'round';
+        ctx.beginPath();
+        pts.forEach((p, i) => { const [x, y] = project(p); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); });
+        ctx.strokeStyle = 'rgba(0,0,0,0.45)'; ctx.lineWidth = 16; ctx.stroke();  // contorno
+        ctx.strokeStyle = color; ctx.lineWidth = 9;
+        ctx.shadowColor = color; ctx.shadowBlur = 20; ctx.stroke();
+        ctx.shadowBlur = 0;
+        const s = project(pts[0]), e = project(pts[pts.length - 1]);
+        ctx.fillStyle = '#22c55e'; ctx.beginPath(); ctx.arc(s[0], s[1], 11, 0, Math.PI * 2); ctx.fill();
+        ctx.fillStyle = '#ef4444'; ctx.beginPath(); ctx.arc(e[0], e[1], 11, 0, Math.PI * 2); ctx.fill();
+        ctx.restore();
+    }
+
     function drawMetricsRow(mts, m, color) {
         const cx = W / 2;
         const n = mts.length || 1;
@@ -423,6 +511,11 @@
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow; ctx.fillRect(0, 1000, W, H - 1000);
 
+        // estilo "Rota": desenha o traçado GPS na parte de cima
+        if (payload.type === 'workout' && currentVariant() === 'route' && payload.route) {
+            drawRouteShape(payload.route, cx, 250, 840, 620, color);
+        }
+
         drawContent(layout(H - 96));
     }
 
@@ -508,12 +601,15 @@
         if (!overlay) buildSheet();
         payload = data;
         photoImg = null; offX = 0; offY = 0; transparent = false;
+        variants = variantsFor(payload);
+        variantIdx = 0;
         fileInput.value = '';
         transInput.checked = false;
         photoLabel.textContent = 'Adicionar foto';
         // modo transparente só faz sentido pra conquistas (sticker)
         transWrap.style.display = payload.type === 'badge' ? '' : 'none';
         syncControls();
+        updateVariantNav();
         overlay.hidden = false;
         render();
     }

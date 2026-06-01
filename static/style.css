@@ -838,6 +838,29 @@ html, body { overflow-x: hidden; max-width: 100%; }
     flex: 1;
     justify-content: center;
 }
+.share-variants {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
+    margin: 2px 0 12px;
+}
+.variant-arrow {
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    color: var(--text);
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    font-size: 1.3rem;
+    line-height: 1;
+    cursor: pointer;
+}
+.variant-arrow:active { background: var(--panel); }
+.variant-center { display: flex; flex-direction: column; align-items: center; gap: 6px; min-width: 90px; }
+.variant-label { font-size: 0.85rem; color: var(--text-2); font-weight: 600; }
+.variant-dots { display: flex; gap: 6px; }
+.variant-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--border-strong); }
+.variant-dot.is-on { background: var(--accent); }
 .header-actions {
     display: flex;
     gap: 8px;
