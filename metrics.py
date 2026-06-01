@@ -11,6 +11,16 @@ SPORT_LABELS = {
     "outro": ("Outro", "tag-other", "💪"),
 }
 
+# Cor de acento por esporte (espelha as classes .tag-* do style.css)
+SPORT_COLORS = {
+    "corrida": "#60a5fa",
+    "natacao": "#22d3ee",
+    "musculacao": "#f87171",
+    "trilha": "#a3e635",
+    "bike": "#facc15",
+    "outro": "#c084fc",
+}
+
 
 def sport_label(sport: str) -> str:
     return SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0]
@@ -57,3 +67,55 @@ def bmi_category(value: Optional[float]) -> Optional[str]:
     if value < 30:
         return "sobrepeso"
     return "obesidade"
+
+
+def _fmt_duration(duration_min: Optional[float]) -> Optional[str]:
+    if not duration_min or duration_min <= 0:
+        return None
+    d = int(round(duration_min))
+    return f"{d // 60}h{d % 60:02d}" if d >= 60 else f"{d} min"
+
+
+def _fmt_distance(distance_km: Optional[float]) -> Optional[str]:
+    if not distance_km or distance_km <= 0:
+        return None
+    s = f"{distance_km:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+    return f"{s} km"
+
+
+def workout_share(sport, distance_km, duration_min, calories,
+                  date_label=None, volume=None, ex_count=None) -> dict:
+    """Monta o payload do card de compartilhamento de um treino:
+    rótulo do esporte, cor de acento e métricas (ícone + valor + rótulo)."""
+    label = SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0]
+    color = SPORT_COLORS.get(sport, SPORT_COLORS["outro"])
+    p = pace(sport, distance_km, duration_min)
+    dur, dist = _fmt_duration(duration_min), _fmt_distance(distance_km)
+    cal = f"{calories:.0f} kcal" if calories else None
+
+    if sport in ("corrida", "trilha"):
+        raw = [("clock", dur, "Tempo"), ("distance", dist, "Distância"),
+               ("pace", p, "Pace"), ("flame", cal, "Calorias")]
+    elif sport == "natacao":
+        raw = [("distance", dist, "Distância"), ("clock", dur, "Tempo"),
+               ("pace", p, "Ritmo"), ("flame", cal, "Calorias")]
+    elif sport == "bike":
+        raw = [("distance", dist, "Distância"), ("clock", dur, "Tempo"),
+               ("speed", p, "Velocidade"), ("flame", cal, "Calorias")]
+    elif sport == "musculacao":
+        vol = (f"{volume:,.0f}".replace(",", ".") + " kg") if volume else None
+        raw = [("clock", dur, "Tempo"), ("volume", vol, "Volume"),
+               ("count", str(ex_count) if ex_count else None, "Exercícios"),
+               ("flame", cal, "Calorias")]
+    else:
+        raw = [("clock", dur, "Tempo"), ("distance", dist, "Distância"),
+               ("flame", cal, "Calorias")]
+
+    metrics = [{"icon": i, "value": v, "label": l} for (i, v, l) in raw if v]
+    return {
+        "type": "workout",
+        "sportLabel": label,
+        "dateLabel": date_label,
+        "color": color,
+        "metrics": metrics,
+    }

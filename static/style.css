@@ -805,12 +805,31 @@ html, body { overflow-x: hidden; max-width: 100%; }
     padding: 4px 0 14px;
 }
 .share-preview-wrap canvas {
-    height: 56vh;
+    height: 52vh;
     width: auto;
     max-width: 100%;
     border-radius: 16px;
     box-shadow: 0 14px 44px rgba(0,0,0,0.55);
+    touch-action: none;
+    cursor: grab;
 }
+.share-preview-wrap canvas:active { cursor: grabbing; }
+.share-hint {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.8rem;
+    margin: 0 0 10px;
+}
+.share-toggle {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--text-2);
+    font-size: 0.9rem;
+    padding: 4px 2px 12px;
+    cursor: pointer;
+}
+.share-toggle input { width: 18px; height: 18px; accent-color: var(--accent); }
 .share-actions {
     display: flex;
     gap: 10px;
@@ -818,6 +837,12 @@ html, body { overflow-x: hidden; max-width: 100%; }
 .share-actions > button {
     flex: 1;
     justify-content: center;
+}
+.header-actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
 }
 
 .badge-bar {

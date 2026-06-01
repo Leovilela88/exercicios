@@ -18,7 +18,7 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
-from metrics import bmi, bmi_category, pace, sport_label
+from metrics import bmi, bmi_category, pace, sport_label, workout_share
 from models import (Athlete, ExerciseEntry, Goal, Race, Routine, RoutineItem,
                     Settings, WeightLog, Workout)
 from strava_import import parse_strava_csv
@@ -607,6 +607,11 @@ def workout_detail(request: Request, workout_id: int, db: Session = Depends(get_
             "exercise_names": exercise_names,
             "routines": routines,
             "pace": pace(w.sport, w.distance_km, w.duration_min),
+            "share_data": workout_share(
+                w.sport, w.distance_km, w.duration_min, w.calories,
+                date_label=w.date.strftime("%d/%m/%Y"),
+                volume=volume, ex_count=len(exercises),
+            ),
         },
     )
 
