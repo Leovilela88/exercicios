@@ -247,6 +247,30 @@
     {% endif %}
 </section>
 
+{# --- Desafios aceitos --- #}
+{% if active_challenges %}
+<section class="panel-section">
+    <div class="section-head">
+        <h2>Desafios</h2>
+        <a class="section-link" href="/desafios">ver todos →</a>
+    </div>
+    <div class="goals-mini">
+        {% for it in active_challenges %}
+        <div class="goal-mini {% if it.done %}goal-done{% endif %}">
+            <div class="goal-mini-top">
+                <span>{{ it.ch.title }} <span class="goal-period">{{ 'no mês' if it.ch.period == 'month' else 'na semana' }}</span></span>
+                <span class="goal-pct {% if it.done %}is-done{% endif %}">{% if it.done %}<span class="ico-inline">{{ bicon('check') }}</span>{% else %}{{ it.pct }}%{% endif %}</span>
+            </div>
+            <div class="goal-bar"><div class="goal-fill" style="width: {{ it.pct }}%;{% if not it.done %} background: {{ it.ch.color }};{% endif %}"></div></div>
+            <div class="goal-mini-foot">
+                <span>{{ it.progress_fmt }} / {{ it.target_fmt }} {{ it.ch.unit }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 {# --- Recordes pessoais --- #}
 <section class="panel-section">
     <div class="section-head"><h2>Recordes pessoais</h2></div>
