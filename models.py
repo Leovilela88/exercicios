@@ -51,6 +51,7 @@ class Workout(Base):
     calories = Column(Float, nullable=True)
     notes = Column(String(500), nullable=True)
     route_polyline = Column(Text, nullable=True)  # traçado GPS (encoded polyline do Strava)
+    extra_json = Column(Text, nullable=True)       # métricas extras (FC, elevação, etc.) em JSON
     created_at = Column(DateTime, server_default=func.now())
 
 

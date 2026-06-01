@@ -83,8 +83,32 @@ def _fmt_distance(distance_km: Optional[float]) -> Optional[str]:
     return f"{s} km"
 
 
+# métricas extras (vindas do Strava): chave -> (ícone, rótulo, formato)
+EXTRA_DEFS = [
+    ("hr_avg", "heart", "FC média", "{} bpm"),
+    ("hr_max", "heart", "FC máx", "{} bpm"),
+    ("elev", "mountain", "Elevação", "{} m"),
+    ("speed_max", "speed", "Vel. máx", "{} km/h"),
+    ("cadence", "pace", "Cadência", "{}"),
+    ("watts", "bolt", "Potência", "{} W"),
+]
+
+
+def extra_metrics_list(extra: Optional[dict]) -> list:
+    """Transforma o dict de extras em lista de {icon, value, label} pra exibir."""
+    if not extra:
+        return []
+    out = []
+    for key, icon, label, fmt in EXTRA_DEFS:
+        v = extra.get(key)
+        if v is not None:
+            out.append({"icon": icon, "value": fmt.format(v), "label": label})
+    return out
+
+
 def workout_share(sport, distance_km, duration_min, calories,
-                  date_label=None, volume=None, ex_count=None, polyline=None) -> dict:
+                  date_label=None, volume=None, ex_count=None, polyline=None,
+                  extra=None) -> dict:
     """Monta o payload do card de compartilhamento de um treino:
     rótulo do esporte, cor de acento e métricas (ícone + valor + rótulo)."""
     label = SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0]
@@ -118,5 +142,6 @@ def workout_share(sport, distance_km, duration_min, calories,
         "dateLabel": date_label,
         "color": color,
         "metrics": metrics,
+        "extras": extra_metrics_list(extra),
         "route": polyline or None,
     }

@@ -3,6 +3,7 @@ from typing import Optional
 from zoneinfo import ZoneInfo
 
 import io
+import json
 import os
 import secrets
 import time
@@ -72,6 +73,9 @@ def _init_db() -> None:
         if "route_polyline" not in cols:
             with engine.begin() as conn:
                 conn.execute(text("ALTER TABLE workouts ADD COLUMN route_polyline TEXT"))
+        if "extra_json" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE workouts ADD COLUMN extra_json TEXT"))
 
     # Colunas de foto + conta em athletes podem não existir em bases pré-migração.
     if "athletes" in insp.get_table_names():
@@ -216,6 +220,18 @@ templates.env.globals["sport_label"] = sport_label
 templates.env.globals["workout_share"] = workout_share
 templates.env.globals["bmi"] = bmi
 templates.env.globals["bmi_category"] = bmi_category
+
+
+def _from_json(s):
+    try:
+        return json.loads(s) if s else None
+    except (ValueError, TypeError):
+        return None
+
+
+from metrics import extra_metrics_list as _extra_metrics_list  # noqa: E402
+templates.env.filters["fromjson"] = _from_json
+templates.env.globals["extra_metrics_list"] = _extra_metrics_list
 
 
 # ------------- helpers -------------
@@ -925,10 +941,12 @@ def workout_detail(request: Request, workout_id: int, db: Session = Depends(get_
             "exercise_names": exercise_names,
             "routines": routines,
             "pace": pace(w.sport, w.distance_km, w.duration_min),
+            "extra": _from_json(w.extra_json),
             "share_data": workout_share(
                 w.sport, w.distance_km, w.duration_min, w.calories,
                 date_label=w.date.strftime("%d/%m/%Y"),
                 volume=volume, ex_count=len(exercises), polyline=w.route_polyline,
+                extra=_from_json(w.extra_json),
             ),
         },
     )
@@ -1814,12 +1832,16 @@ def _insert_parsed_workouts(db: Session, athlete: Athlete, parsed_list):
     for pw in parsed_list:
         k = key(pw.date, pw.sport, pw.duration_min, pw.distance_km)
         poly = getattr(pw, "polyline", None)
+        extra = getattr(pw, "extra", None)
+        extra_json = json.dumps(extra) if extra else None
         if k in existing_by_key:
             skipped_dup += 1
-            # backfill: se o treino já existe sem rota e agora veio o traçado, grava
+            # backfill: preenche rota / métricas extras se o treino já existia sem
             w = existing_by_key[k]
             if poly and not w.route_polyline:
                 w.route_polyline = poly
+            if extra_json and not w.extra_json:
+                w.extra_json = extra_json
             continue
         cal = pw.calories
         if cal is None:
@@ -1828,7 +1850,7 @@ def _insert_parsed_workouts(db: Session, athlete: Athlete, parsed_list):
         w = Workout(
             athlete_id=athlete.id, date=pw.date, sport=pw.sport,
             distance_km=pw.distance_km, duration_min=pw.duration_min,
-            calories=cal, notes=pw.notes, route_polyline=poly,
+            calories=cal, notes=pw.notes, route_polyline=poly, extra_json=extra_json,
         )
         db.add(w)
         existing_by_key[k] = w

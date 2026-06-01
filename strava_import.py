@@ -153,6 +153,7 @@ class ParsedWorkout:
     calories: Optional[float]
     notes: Optional[str]
     polyline: Optional[str] = None  # traçado GPS (encoded polyline), só no Strava API
+    extra: Optional[dict] = None    # métricas extras (FC, elevação, etc.), só no Strava API
 
 
 @dataclass

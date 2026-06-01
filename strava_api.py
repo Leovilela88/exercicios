@@ -104,6 +104,24 @@ def _map_sport(act: dict) -> str:
     return "outro"
 
 
+def _extra_metrics(act: dict) -> Optional[dict]:
+    """Métricas extras disponíveis na atividade (FC, elevação, cadência, etc.)."""
+    e = {}
+    if act.get("average_heartrate"):
+        e["hr_avg"] = round(act["average_heartrate"])
+    if act.get("max_heartrate"):
+        e["hr_max"] = round(act["max_heartrate"])
+    if act.get("total_elevation_gain"):
+        e["elev"] = round(act["total_elevation_gain"])
+    if act.get("max_speed"):
+        e["speed_max"] = round(act["max_speed"] * 3.6, 1)  # m/s -> km/h
+    if act.get("average_cadence"):
+        e["cadence"] = round(act["average_cadence"])
+    if act.get("average_watts"):
+        e["watts"] = round(act["average_watts"])
+    return e or None
+
+
 def _to_workout(act: dict) -> Optional[ParsedWorkout]:
     try:
         ds = act.get("start_date_local") or act.get("start_date")
@@ -121,7 +139,7 @@ def _to_workout(act: dict) -> Optional[ParsedWorkout]:
         return ParsedWorkout(
             date=d, sport=_map_sport(act), distance_km=dist_km,
             duration_min=dur_min, calories=cal, notes=(name or None),
-            polyline=poly,
+            polyline=poly, extra=_extra_metrics(act),
         )
     except Exception:
         return None

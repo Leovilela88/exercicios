@@ -33,6 +33,9 @@
     {% if w.sport == 'musculacao' and volume %}
     <div class="card"><div class="card-label">Volume total</div><div class="card-value">{{ "{:,.0f}".format(volume).replace(',', '.') }}<span> kg</span></div></div>
     {% endif %}
+    {% for m in extra_metrics_list(extra) %}
+    <div class="card"><div class="card-label">{{ m.label }}</div><div class="card-value">{{ m.value }}</div></div>
+    {% endfor %}
 </section>
 
 {% if w.notes %}

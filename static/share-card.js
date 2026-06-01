@@ -13,10 +13,15 @@
     let variants = ['default'];
     let variantIdx = 0;
 
-    const VARIANT_LABELS = { metrics: 'Métricas', route: 'Rota' };
+    const VARIANT_LABELS = { metrics: 'Métricas', route: 'Rota', full: 'Completo' };
 
     function variantsFor(p) {
-        if (p.type === 'workout') return p.route ? ['metrics', 'route'] : ['metrics'];
+        if (p.type === 'workout') {
+            const v = ['metrics'];
+            if (p.route) v.push('route');
+            if (p.extras && p.extras.length) v.push('full');
+            return v;
+        }
         return ['default'];
     }
     function currentVariant() { return variants[variantIdx] || variants[0]; }
@@ -194,6 +199,18 @@
                 ctx.beginPath(); ctx.moveTo(0, s * 0.25);
                 ctx.lineTo(s * 0.5, -s * 0.45); ctx.stroke();
                 ctx.beginPath(); ctx.arc(0, s * 0.25, s * 0.12, 0, Math.PI * 2); ctx.fill();
+                break;
+            case 'heart': // frequência cardíaca
+                ctx.moveTo(0, s * 0.75);
+                ctx.bezierCurveTo(-s * 1.3, -s * 0.2, -s * 0.4, -s * 0.95, 0, -s * 0.3);
+                ctx.bezierCurveTo(s * 0.4, -s * 0.95, s * 1.3, -s * 0.2, 0, s * 0.75);
+                ctx.stroke();
+                break;
+            case 'bolt': // potência (watts)
+                ctx.moveTo(s * 0.25, -s); ctx.lineTo(-s * 0.45, s * 0.15);
+                ctx.lineTo(s * 0.05, s * 0.15); ctx.lineTo(-s * 0.25, s);
+                ctx.lineTo(s * 0.5, -s * 0.2); ctx.lineTo(0, -s * 0.2);
+                ctx.closePath(); ctx.stroke();
                 break;
             case 'dumbbell':
             case 'volume': { // halter
@@ -455,6 +472,51 @@
         drawBrand(cx, m.brandY);
     }
 
+    // estilo "Completo": grade com TODAS as métricas (base + extras do Strava)
+    function drawFullContent(cx, color) {
+        const all = (payload.metrics || []).concat(payload.extras || []);
+        const brandY = H - 96, athleteY = brandY - 56, divY = athleteY - 46;
+        const cols = 2, rowH = 150;
+        const rows = Math.ceil(all.length / cols);
+        const leftCx = cx - 235, rightCx = cx + 235;
+        const lastCellTop = divY - 60 - 92;
+        const gridTop = lastCellTop - (rows - 1) * rowH;
+
+        ctx.textAlign = 'center';
+        all.forEach((mt, i) => {
+            const c = i % cols;
+            const lastAlone = (i === all.length - 1) && (all.length % 2 === 1);
+            const x = lastAlone ? cx : (c === 0 ? leftCx : rightCx);
+            const top = gridTop + Math.floor(i / cols) * rowH;
+            drawIcon(mt.icon, x, top, 23, color);
+            ctx.fillStyle = '#ffffff'; ctx.font = '800 44px Inter, sans-serif';
+            ctx.fillText(mt.value, x, top + 56);
+            ctx.fillStyle = '#94a3b8'; ctx.font = '600 23px Inter, sans-serif';
+            if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+            ctx.fillText((mt.label || '').toUpperCase(), x, top + 90);
+            if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        });
+
+        const titleY = gridTop - 66;
+        ctx.fillStyle = '#ffffff'; ctx.font = '800 78px Inter, sans-serif';
+        ctx.fillText(payload.sportLabel, cx, titleY);
+
+        const labelY = titleY - 64;
+        ctx.fillStyle = color; ctx.font = '600 30px Inter, sans-serif';
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
+        if (payload.dateLabel) ctx.fillText(payload.dateLabel.toUpperCase(), cx, labelY);
+        if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+
+        ctx.beginPath(); ctx.arc(cx, labelY - 50, 14, 0, Math.PI * 2);
+        ctx.fillStyle = color; ctx.fill();
+
+        ctx.strokeStyle = 'rgba(148,163,184,0.28)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.moveTo(cx - 200, divY); ctx.lineTo(cx + 200, divY); ctx.stroke();
+        ctx.fillStyle = '#e2e8f0'; ctx.font = '700 36px Inter, sans-serif';
+        ctx.fillText(ATHLETE, cx, athleteY);
+        drawBrand(cx, brandY);
+    }
+
     function draw() {
         if (!payload) return;
         const cx = W / 2, color = payload.color;
@@ -510,6 +572,12 @@
         glow.addColorStop(0, color + '22');
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow; ctx.fillRect(0, 1000, W, H - 1000);
+
+        // estilo "Completo": grade com todas as métricas
+        if (payload.type === 'workout' && currentVariant() === 'full') {
+            drawFullContent(cx, color);
+            return;
+        }
 
         // estilo "Rota": desenha o traçado GPS na parte de cima, deslocado um
         // pouco pra esquerda (deixa o lado direito mais livre, ex: pra foto)
