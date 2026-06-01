@@ -2053,6 +2053,48 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 .period-share-bar { display: flex; justify-content: center; margin: 0 0 18px; }
 .period-share-bar .btn-small { justify-content: center; }
 
+/* botão de compartilhar "chamativo" (voltado pra redes sociais) */
+.btn-share-cta {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 9px;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    font-weight: 700;
+    color: #fff;
+    background: linear-gradient(95deg, #2563eb, #7c3aed 55%, #ec4899);
+    border-radius: 14px;
+    padding: 14px 22px;
+    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+    transition: filter .15s, transform .1s;
+}
+.btn-share-cta:hover { filter: brightness(1.08); }
+.btn-share-cta:active { transform: translateY(1px); }
+.btn-share-cta svg { width: 18px; height: 18px; }
+.period-share-bar .btn-share-cta { width: 100%; max-width: 440px; }
+
+/* versão compacta (pill) para a linha de treinos */
+.btn-share-row {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    border: none;
+    cursor: pointer;
+    font: inherit;
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: #fff;
+    background: linear-gradient(95deg, #2563eb, #7c3aed 55%, #ec4899);
+    border-radius: 8px;
+    padding: 6px 12px;
+    white-space: nowrap;
+    box-shadow: 0 3px 10px rgba(124, 58, 237, 0.3);
+}
+.btn-share-row:hover { filter: brightness(1.08); }
+.btn-share-row svg { width: 13px; height: 13px; }
+
 /* ---------- Strava ---------- */
 .strava-card {
     background: var(--panel-2);
