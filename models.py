@@ -26,6 +26,7 @@ class Athlete(Base):
     strava_access_token = Column(String(255), nullable=True)
     strava_refresh_token = Column(String(255), nullable=True)
     strava_expires_at = Column(Integer, nullable=True)  # epoch (segundos)
+    strava_last_sync_at = Column(DateTime, nullable=True)
 
 
 class Friendship(Base):

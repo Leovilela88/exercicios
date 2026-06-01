@@ -97,6 +97,8 @@ def _init_db() -> None:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_refresh_token VARCHAR(255)"))
             if "strava_expires_at" not in cols:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_expires_at INTEGER"))
+            if "strava_last_sync_at" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_last_sync_at TIMESTAMP"))
 
     db = SessionLocal()
     try:
@@ -522,6 +524,7 @@ def dashboard(
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
+    _maybe_strava_autosync(athlete, db)  # puxa treinos novos do Strava ao abrir
     today = today_br()
     earliest = (
         db.query(func.min(Workout.date))
@@ -1909,6 +1912,29 @@ def _strava_valid_token(athlete: Athlete, db: Session) -> Optional[str]:
     return athlete.strava_access_token
 
 
+_STRAVA_AUTOSYNC_INTERVAL = timedelta(hours=2)
+
+
+def _maybe_strava_autosync(athlete: Athlete, db: Session) -> None:
+    """Sincroniza treinos recentes do Strava ao abrir o app — no máximo 1x a
+    cada 2h por pessoa, e sem nunca quebrar a página se o Strava falhar."""
+    if not athlete.strava_access_token:
+        return
+    last = athlete.strava_last_sync_at
+    if last and (now_br() - last) < _STRAVA_AUTOSYNC_INTERVAL:
+        return
+    try:
+        token = _strava_valid_token(athlete, db)
+        after = int(time.time()) - 45 * 24 * 3600  # últimos ~45 dias
+        parsed = strava_api.fetch_activities(token, after_epoch=after,
+                                             max_pages=3, timeout=8)
+        _insert_parsed_workouts(db, athlete, parsed)
+    except Exception:
+        pass  # Strava lento/fora não pode travar o app
+    athlete.strava_last_sync_at = now_br()
+    db.commit()
+
+
 @app.post("/strava/importar", response_class=HTMLResponse)
 def strava_import(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
@@ -1924,6 +1950,8 @@ def strava_import(request: Request, db: Session = Depends(get_db)):
                         strava_error="Falha ao buscar atividades no Strava. Tente de novo."),
         )
     inserted, skipped_dup, by_sport = _insert_parsed_workouts(db, athlete, parsed)
+    athlete.strava_last_sync_at = now_br()
+    db.commit()
     return templates.TemplateResponse(
         "import.html",
         _import_ctx(request, athlete, db, strava_result={

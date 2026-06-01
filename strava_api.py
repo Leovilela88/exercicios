@@ -44,11 +44,11 @@ def _post(url: str, data: dict) -> dict:
         return json.loads(resp.read().decode())
 
 
-def _get(url: str, params: dict, token: str) -> list:
+def _get(url: str, params: dict, token: str, timeout: int = 30) -> list:
     qs = urllib.parse.urlencode(params)
     req = urllib.request.Request(f"{url}?{qs}", method="GET")
     req.add_header("Authorization", f"Bearer {token}")
-    with urllib.request.urlopen(req, timeout=30) as resp:
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
         return json.loads(resp.read().decode())
 
 
@@ -126,7 +126,8 @@ def _to_workout(act: dict) -> Optional[ParsedWorkout]:
 
 
 def fetch_activities(access_token: str, after_epoch: Optional[int] = None,
-                     max_pages: int = 20, per_page: int = 100) -> list[ParsedWorkout]:
+                     max_pages: int = 20, per_page: int = 100,
+                     timeout: int = 30) -> list[ParsedWorkout]:
     """Busca atividades paginando até esvaziar (ou max_pages). after_epoch
     limita ao que vier depois de um timestamp (import incremental)."""
     out: list[ParsedWorkout] = []
@@ -135,7 +136,7 @@ def fetch_activities(access_token: str, after_epoch: Optional[int] = None,
         params = {"per_page": per_page, "page": page}
         if after_epoch:
             params["after"] = after_epoch
-        batch = _get(ACTIVITIES_URL, params, access_token)
+        batch = _get(ACTIVITIES_URL, params, access_token, timeout=timeout)
         if not batch:
             break
         for act in batch:
