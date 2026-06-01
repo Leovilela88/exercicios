@@ -38,10 +38,21 @@
 
 <section class="recent">
     {% if rows %}
+    <div class="bulk-bar" id="bulk-bar" hidden>
+        <span class="bulk-count"><strong id="bulk-n">0</strong> selecionado(s)</span>
+        <form method="post" action="/treinos/excluir" id="bulk-form"
+              onsubmit="return confirm('Excluir os treinos selecionados? Essa ação não pode ser desfeita.');">
+            <button type="submit" class="btn-danger btn-small">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
+                Excluir selecionados
+            </button>
+        </form>
+    </div>
     <div class="table-wrap">
         <table class="tbl">
             <thead>
             <tr>
+                <th class="col-check"><input type="checkbox" id="check-all" title="Selecionar todos" /></th>
                 <th>Data</th>
                 <th>Esporte</th>
                 <th>Distância</th>
@@ -56,6 +67,7 @@
             {% for w in rows %}
             {% set p = pace(w.sport, w.distance_km, w.duration_min) %}
             <tr class="row-link" data-href="/treino/{{ w.id }}">
+                <td class="col-check"><input type="checkbox" class="row-check" value="{{ w.id }}" aria-label="Selecionar treino" /></td>
                 <td>{{ w.date.strftime('%d/%m/%y') }}</td>
                 <td>
                     {% if w.sport == 'corrida' %}<span class="tag tag-run">Corrida</span>
@@ -120,12 +132,48 @@
 
 <script>
     // Clicar em qualquer lugar da linha abre o detalhe do treino — exceto nos
-    // botões de ação (ver/compartilhar/editar/excluir) e em links próprios.
+    // botões de ação, links e nos checkboxes de seleção.
     document.querySelectorAll('tr.row-link').forEach(function (tr) {
         tr.addEventListener('click', function (e) {
-            if (e.target.closest('.row-actions, a, button, form')) return;
+            if (e.target.closest('.row-actions, .col-check, a, button, form, input, label')) return;
             window.location.href = tr.dataset.href;
         });
     });
+
+    // Seleção múltipla para exclusão em massa.
+    (function () {
+        const checks = Array.from(document.querySelectorAll('.row-check'));
+        const all = document.getElementById('check-all');
+        const bar = document.getElementById('bulk-bar');
+        const nEl = document.getElementById('bulk-n');
+        const form = document.getElementById('bulk-form');
+        if (!checks.length || !form) return;
+
+        function selected() { return checks.filter(c => c.checked); }
+        function refresh() {
+            const sel = selected();
+            nEl.textContent = sel.length;
+            bar.hidden = sel.length === 0;
+            if (all) {
+                all.checked = sel.length === checks.length;
+                all.indeterminate = sel.length > 0 && sel.length < checks.length;
+            }
+        }
+        checks.forEach(c => c.addEventListener('change', refresh));
+        if (all) all.addEventListener('change', () => {
+            checks.forEach(c => { c.checked = all.checked; });
+            refresh();
+        });
+        // Ao enviar, injeta os ids marcados como inputs ocultos no form.
+        form.addEventListener('submit', function () {
+            form.querySelectorAll('input[name="ids"]').forEach(i => i.remove());
+            selected().forEach(c => {
+                const h = document.createElement('input');
+                h.type = 'hidden'; h.name = 'ids'; h.value = c.value;
+                form.appendChild(h);
+            });
+        });
+        refresh();
+    })();
 </script>
 {% endblock %}

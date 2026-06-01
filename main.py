@@ -1244,6 +1244,29 @@ def delete_workout(
     return RedirectResponse(url=dest, status_code=303)
 
 
+@app.post("/treinos/excluir")
+def delete_workouts_bulk(
+    request: Request,
+    ids: list[int] = Form(default=[]),
+    db: Session = Depends(get_db),
+):
+    athlete = get_active_athlete(request, db)
+    if ids:
+        # só treinos do próprio atleta
+        own = [wid for (wid,) in db.query(Workout.id).filter(
+            Workout.id.in_(ids), Workout.athlete_id == athlete.id
+        ).all()]
+        if own:
+            db.query(ExerciseEntry).filter(
+                ExerciseEntry.workout_id.in_(own)
+            ).delete(synchronize_session=False)
+            db.query(Workout).filter(
+                Workout.id.in_(own)
+            ).delete(synchronize_session=False)
+            db.commit()
+    return RedirectResponse(url="/treinos", status_code=303)
+
+
 _BIKE_HINTS = ("ride", "bike", "pedal", "cicl", "bicicl")
 
 
