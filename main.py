@@ -380,10 +380,7 @@ def logout(request: Request):
 
 # ------------- amigos -------------
 
-@app.get("/amigos", response_class=HTMLResponse)
-def friends_page(request: Request, db: Session = Depends(get_db),
-                 erro: Optional[str] = None, ok: Optional[str] = None):
-    me = get_active_athlete(request, db)
+def _friends_ctx(request, me, db, **extra):
     rows = (
         db.query(Friendship, Athlete)
         .join(Athlete, Friendship.friend_id == Athlete.id)
@@ -391,10 +388,39 @@ def friends_page(request: Request, db: Session = Depends(get_db),
         .order_by(Athlete.name).all()
     )
     friends = [{"fid": f.id, "athlete": a} for (f, a) in rows]
+    ctx = {"request": request, "athlete": me, "friends": friends,
+           "erro": None, "ok": None, "pending": None}
+    ctx.update(extra)
+    return ctx
+
+
+@app.get("/amigos", response_class=HTMLResponse)
+def friends_page(request: Request, db: Session = Depends(get_db),
+                 erro: Optional[str] = None, ok: Optional[str] = None):
+    me = get_active_athlete(request, db)
     return templates.TemplateResponse(
-        "friends.html",
-        {"request": request, "athlete": me, "friends": friends, "erro": erro, "ok": ok},
-    )
+        "friends.html", _friends_ctx(request, me, db, erro=erro, ok=ok))
+
+
+@app.post("/amigos/buscar", response_class=HTMLResponse)
+def friends_lookup(request: Request, code: str = Form(...), db: Session = Depends(get_db)):
+    """Procura pelo código e mostra o NOME pra confirmar antes de adicionar."""
+    me = get_active_athlete(request, db)
+    target_code = auth.normalize_code(code)
+    target = db.query(Athlete).filter(Athlete.friend_code == target_code).first()
+    if not target:
+        return RedirectResponse(url="/amigos?erro=naoachou", status_code=303)
+    if target.id == me.id:
+        return RedirectResponse(url="/amigos?erro=voce", status_code=303)
+    exists = db.query(Friendship).filter(
+        Friendship.athlete_id == me.id, Friendship.friend_id == target.id
+    ).first()
+    if exists:
+        return RedirectResponse(url="/amigos?erro=jaadd", status_code=303)
+    pending = {"name": target.name, "code": target.friend_code,
+               "athlete_id": target.id}
+    return templates.TemplateResponse(
+        "friends.html", _friends_ctx(request, me, db, pending=pending))
 
 
 @app.post("/amigos/adicionar")

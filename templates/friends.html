@@ -21,16 +21,35 @@
     <h2 class="form-title">Adicionar amigo</h2>
     {% if ok %}<div class="alert alert-success"><strong>{{ ok }}</strong> foi adicionado ao seu ranking.</div>{% endif %}
     {% if erro == "naoachou" %}<div class="alert alert-error">Não encontrei ninguém com esse código.</div>
-    {% elif erro == "voce" %}<div class="alert alert-error">Esse é o seu próprio código. :)</div>{% endif %}
-    <form method="post" action="/amigos/adicionar">
+    {% elif erro == "voce" %}<div class="alert alert-error">Esse é o seu próprio código. :)</div>
+    {% elif erro == "jaadd" %}<div class="alert alert-error">Essa pessoa já está no seu ranking.</div>{% endif %}
+
+    {% if pending %}
+    <div class="confirm-card">
+        <div class="confirm-who">
+            <div class="confirm-name">{{ pending.name }}</div>
+            <div class="confirm-code">{{ pending.code }}</div>
+        </div>
+        <p class="hint">É essa pessoa que você quer adicionar ao seu ranking?</p>
+        <div class="confirm-actions">
+            <a href="/amigos" class="btn-ghost btn-small">Cancelar</a>
+            <form method="post" action="/amigos/adicionar">
+                <input type="hidden" name="code" value="{{ pending.code }}" />
+                <button type="submit" class="btn-primary btn-small">Confirmar e adicionar</button>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <form method="post" action="/amigos/buscar">
         <label>
             <span>Código do amigo</span>
             <input type="text" name="code" required maxlength="12" placeholder="ex: MF-7F3K2" autocapitalize="characters" autocorrect="off" style="text-transform: uppercase;" />
         </label>
         <div class="actions">
-            <button type="submit" class="btn-primary">Adicionar</button>
+            <button type="submit" class="btn-primary">Buscar</button>
         </div>
     </form>
+    {% endif %}
 </section>
 
 <section class="recent" style="margin-top: 24px;">
