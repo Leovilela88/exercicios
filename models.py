@@ -1,5 +1,5 @@
 from datetime import date as date_type
-from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, LargeBinary, func
+from sqlalchemy import Column, Integer, String, Float, Date, DateTime, ForeignKey, LargeBinary, Text, func
 from db import Base
 
 
@@ -50,6 +50,7 @@ class Workout(Base):
     duration_min = Column(Float, nullable=True)
     calories = Column(Float, nullable=True)
     notes = Column(String(500), nullable=True)
+    route_polyline = Column(Text, nullable=True)  # traçado GPS (encoded polyline do Strava)
     created_at = Column(DateTime, server_default=func.now())
 
 

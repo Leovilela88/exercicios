@@ -1987,3 +1987,18 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 .or-divider::before, .or-divider::after {
     content: ""; flex: 1; height: 1px; background: var(--border);
 }
+
+/* ---------- mapa da rota (Strava) ---------- */
+.route-map {
+    height: 320px;
+    border-radius: 14px;
+    overflow: hidden;
+    border: 1px solid var(--border-strong);
+    background: var(--panel-2);
+    z-index: 0;
+}
+.route-map .leaflet-control-attribution {
+    background: rgba(5,8,16,0.7);
+    color: var(--muted);
+}
+.route-map .leaflet-control-attribution a { color: var(--text-2); }

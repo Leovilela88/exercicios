@@ -152,6 +152,7 @@ class ParsedWorkout:
     duration_min: Optional[float]
     calories: Optional[float]
     notes: Optional[str]
+    polyline: Optional[str] = None  # traçado GPS (encoded polyline), só no Strava API
 
 
 @dataclass

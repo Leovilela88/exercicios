@@ -69,6 +69,9 @@ def _init_db() -> None:
                     ))
                 else:
                     conn.execute(text("ALTER TABLE workouts ADD COLUMN athlete_id INTEGER"))
+        if "route_polyline" not in cols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE workouts ADD COLUMN route_polyline TEXT"))
 
     # Colunas de foto + conta em athletes podem não existir em bases pré-migração.
     if "athletes" in insp.get_table_names():
@@ -1745,34 +1748,39 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
 def _insert_parsed_workouts(db: Session, athlete: Athlete, parsed_list):
     """Insere treinos parseados (Strava/Garmin) com dedup por
     (data, esporte, duração, distância). Retorna (inseridos, duplicados, by_sport)."""
-    existing = db.query(
-        Workout.date, Workout.sport, Workout.duration_min, Workout.distance_km
-    ).filter(Workout.athlete_id == athlete.id).all()
+    existing = db.query(Workout).filter(Workout.athlete_id == athlete.id).all()
 
     def key(d, sport, dur, dist):
         return (d, sport,
                 round(dur, 0) if dur is not None else None,
                 round(dist, 2) if dist is not None else None)
 
-    existing_keys = {key(*row) for row in existing}
+    existing_by_key = {key(w.date, w.sport, w.duration_min, w.distance_km): w
+                       for w in existing}
     inserted, skipped_dup = 0, 0
     by_sport: dict[str, int] = {}
 
     for pw in parsed_list:
         k = key(pw.date, pw.sport, pw.duration_min, pw.distance_km)
-        if k in existing_keys:
+        poly = getattr(pw, "polyline", None)
+        if k in existing_by_key:
             skipped_dup += 1
+            # backfill: se o treino já existe sem rota e agora veio o traçado, grava
+            w = existing_by_key[k]
+            if poly and not w.route_polyline:
+                w.route_polyline = poly
             continue
         cal = pw.calories
         if cal is None:
             cal = estimate_calories(pw.sport, athlete.weight_kg,
                                     pw.distance_km, pw.duration_min)
-        db.add(Workout(
+        w = Workout(
             athlete_id=athlete.id, date=pw.date, sport=pw.sport,
             distance_km=pw.distance_km, duration_min=pw.duration_min,
-            calories=cal, notes=pw.notes,
-        ))
-        existing_keys.add(k)
+            calories=cal, notes=pw.notes, route_polyline=poly,
+        )
+        db.add(w)
+        existing_by_key[k] = w
         inserted += 1
         by_sport[pw.sport] = by_sport.get(pw.sport, 0) + 1
 
