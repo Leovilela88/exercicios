@@ -25,12 +25,14 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label, workout_share
-from models import (Athlete, ChallengeJoin, ExerciseEntry, Friendship, Goal, Race,
-                    Routine, RoutineItem, Settings, WeightLog, Workout)
+from models import (Athlete, ChallengeJoin, ExerciseEntry, Friendship, Goal,
+                    Notification, Race, Routine, RoutineItem, Settings,
+                    WeightLog, Workout)
 from strava_import import parse_strava_csv
 import achievements
 import auth
 import challenges
+import notifications
 import stats
 import strava_api
 
@@ -107,6 +109,15 @@ def _init_db() -> None:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_expires_at INTEGER"))
             if "strava_last_sync_at" not in cols:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_last_sync_at TIMESTAMP"))
+
+    # Coluna status em friendships (amizades antigas já contam como aceitas).
+    if "friendships" in insp.get_table_names():
+        fcols = {c["name"] for c in insp.get_columns("friendships")}
+        if "status" not in fcols:
+            with engine.begin() as conn:
+                conn.execute(text(
+                    "ALTER TABLE friendships ADD COLUMN status VARCHAR(10) DEFAULT 'accepted'"))
+                conn.execute(text("UPDATE friendships SET status = 'accepted'"))
 
     db = SessionLocal()
     try:
@@ -270,9 +281,9 @@ def get_all_athletes(db: Session) -> list[Athlete]:
 
 
 def friend_ids(db: Session, athlete_id: int) -> list[int]:
-    """IDs do atleta + amigos que ele adicionou (para o ranking)."""
+    """IDs do atleta + amigos aceitos (para o ranking)."""
     rows = db.query(Friendship.friend_id).filter(
-        Friendship.athlete_id == athlete_id
+        Friendship.athlete_id == athlete_id, Friendship.status == "accepted"
     ).all()
     ids = {athlete_id} | {fid for (fid,) in rows}
     return list(ids)
@@ -398,14 +409,32 @@ def logout(request: Request):
 # ------------- amigos -------------
 
 def _friends_ctx(request, me, db, **extra):
-    rows = (
+    # amigos aceitos
+    arows = (
         db.query(Friendship, Athlete)
         .join(Athlete, Friendship.friend_id == Athlete.id)
-        .filter(Friendship.athlete_id == me.id)
+        .filter(Friendship.athlete_id == me.id, Friendship.status == "accepted")
         .order_by(Athlete.name).all()
     )
-    friends = [{"fid": f.id, "athlete": a} for (f, a) in rows]
+    friends = [{"fid": f.id, "athlete": a} for (f, a) in arows]
+    # pedidos recebidos (alguém me adicionou e aguarda)
+    recv = (
+        db.query(Friendship, Athlete)
+        .join(Athlete, Friendship.athlete_id == Athlete.id)
+        .filter(Friendship.friend_id == me.id, Friendship.status == "pending")
+        .order_by(Friendship.created_at.desc()).all()
+    )
+    received = [{"fid": f.id, "athlete": a} for (f, a) in recv]
+    # pedidos enviados (aguardando o outro aceitar)
+    sent_rows = (
+        db.query(Friendship, Athlete)
+        .join(Athlete, Friendship.friend_id == Athlete.id)
+        .filter(Friendship.athlete_id == me.id, Friendship.status == "pending")
+        .order_by(Friendship.created_at.desc()).all()
+    )
+    sent = [{"fid": f.id, "athlete": a} for (f, a) in sent_rows]
     ctx = {"request": request, "athlete": me, "friends": friends,
+           "received": received, "sent": sent,
            "erro": None, "ok": None, "pending": None}
     ctx.update(extra)
     return ctx
@@ -421,7 +450,7 @@ def friends_page(request: Request, db: Session = Depends(get_db),
 
 @app.post("/amigos/buscar", response_class=HTMLResponse)
 def friends_lookup(request: Request, code: str = Form(...), db: Session = Depends(get_db)):
-    """Procura pelo código e mostra o NOME pra confirmar antes de adicionar."""
+    """Procura pelo código e mostra o NOME pra confirmar antes de mandar o pedido."""
     me = get_active_athlete(request, db)
     target_code = auth.normalize_code(code)
     target = db.query(Athlete).filter(Athlete.friend_code == target_code).first()
@@ -442,6 +471,7 @@ def friends_lookup(request: Request, code: str = Form(...), db: Session = Depend
 
 @app.post("/amigos/adicionar")
 def friends_add(request: Request, code: str = Form(...), db: Session = Depends(get_db)):
+    """Envia um pedido de amizade (pendente até o outro aceitar)."""
     me = get_active_athlete(request, db)
     target_code = auth.normalize_code(code)
     target = db.query(Athlete).filter(Athlete.friend_code == target_code).first()
@@ -453,9 +483,57 @@ def friends_add(request: Request, code: str = Form(...), db: Session = Depends(g
         Friendship.athlete_id == me.id, Friendship.friend_id == target.id
     ).first()
     if not exists:
-        db.add(Friendship(athlete_id=me.id, friend_id=target.id))
+        f = Friendship(athlete_id=me.id, friend_id=target.id, status="pending")
+        db.add(f)
         db.commit()
+        db.refresh(f)
+        notifications.notify(
+            db, target.id, "friend_request",
+            f"{me.name} quer ser seu amigo", "Toque para aceitar ou recusar.",
+            "/amigos", ref=f"req:{me.id}", action_id=f.id)
     return RedirectResponse(url=f"/amigos?ok={target.name}", status_code=303)
+
+
+def _accept_friendship(db, me, f):
+    """Aceita o pedido `f` (alguém -> me) e cria o vínculo recíproco."""
+    f.status = "accepted"
+    reverse = db.query(Friendship).filter(
+        Friendship.athlete_id == me.id, Friendship.friend_id == f.athlete_id
+    ).first()
+    if reverse:
+        reverse.status = "accepted"
+    else:
+        db.add(Friendship(athlete_id=me.id, friend_id=f.athlete_id, status="accepted"))
+    db.commit()
+    notifications.notify(
+        db, f.athlete_id, "friend_accepted",
+        f"{me.name} aceitou seu pedido de amizade", "Agora vocês competem no ranking!",
+        "/ranking", ref=f"acc:{me.id}")
+
+
+@app.post("/amigos/{fid}/aceitar")
+def friends_accept(request: Request, fid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    f = db.query(Friendship).filter(
+        Friendship.id == fid, Friendship.friend_id == me.id,
+        Friendship.status == "pending",
+    ).first()
+    if f:
+        _accept_friendship(db, me, f)
+    return RedirectResponse(url=request.headers.get("referer", "/amigos"), status_code=303)
+
+
+@app.post("/amigos/{fid}/recusar")
+def friends_decline(request: Request, fid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    f = db.query(Friendship).filter(
+        Friendship.id == fid, Friendship.friend_id == me.id,
+        Friendship.status == "pending",
+    ).first()
+    if f:
+        db.delete(f)
+        db.commit()
+    return RedirectResponse(url=request.headers.get("referer", "/amigos"), status_code=303)
 
 
 @app.post("/amigos/{fid}/remover")
@@ -465,9 +543,47 @@ def friends_remove(request: Request, fid: int, db: Session = Depends(get_db)):
         Friendship.id == fid, Friendship.athlete_id == me.id
     ).first()
     if f:
-        db.delete(f)
+        # remove os dois lados do vínculo
+        db.query(Friendship).filter(
+            ((Friendship.athlete_id == me.id) & (Friendship.friend_id == f.friend_id)) |
+            ((Friendship.athlete_id == f.friend_id) & (Friendship.friend_id == me.id))
+        ).delete(synchronize_session=False)
         db.commit()
     return RedirectResponse(url="/amigos", status_code=303)
+
+
+# ------------- notificações -------------
+
+@app.get("/api/notif-count")
+def notif_count(request: Request, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    return JSONResponse({"unread": notifications.unread_count(db, me.id)})
+
+
+@app.get("/notificacoes", response_class=HTMLResponse)
+def notifications_page(request: Request, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    items = (
+        db.query(Notification).filter(Notification.athlete_id == me.id)
+        .order_by(Notification.read, Notification.created_at.desc())
+        .limit(60).all()
+    )
+    # pedidos de amizade ainda pendentes (para mostrar aceitar/recusar)
+    pending_req_ids = {
+        fid for (fid,) in db.query(Friendship.id).filter(
+            Friendship.friend_id == me.id, Friendship.status == "pending")
+    }
+    rendered = templates.TemplateResponse(
+        "notifications.html",
+        {"request": request, "athlete": me, "items": items,
+         "pending_req_ids": pending_req_ids},
+    )
+    # marca todas como lidas (depois de montar a página)
+    db.query(Notification).filter(
+        Notification.athlete_id == me.id, Notification.read == 0
+    ).update({"read": 1}, synchronize_session=False)
+    db.commit()
+    return rendered
 
 
 # ------------- admin -------------
@@ -871,10 +987,19 @@ def create_workout(
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
+    today = today_br()
+    before = notifications.snapshot(db, athlete.id, today)
     fields = _parse_workout_form(sport, workout_date, distance_m,
                                  duration_min, calories, athlete.weight_kg)
     db.add(Workout(athlete_id=athlete.id, notes=(notes or None), **fields))
     db.commit()
+    # notificações: conquistas/metas/desafios recém-batidos + avisa os amigos
+    try:
+        after = notifications.snapshot(db, athlete.id, today)
+        notifications.emit_progress(db, athlete.id, before, after, today)
+        notifications.notify_friends_of_workout(db, athlete, sport_label(sport))
+    except Exception:
+        pass
     return RedirectResponse(url="/", status_code=303)
 
 
@@ -1895,6 +2020,8 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
         db.query(Friendship).filter(
             (Friendship.athlete_id == aid) | (Friendship.friend_id == aid)
         ).delete(synchronize_session=False)
+        db.query(ChallengeJoin).filter(ChallengeJoin.athlete_id == aid).delete(synchronize_session=False)
+        db.query(Notification).filter(Notification.athlete_id == aid).delete(synchronize_session=False)
         db.query(Workout).filter(Workout.athlete_id == aid).delete(synchronize_session=False)
         db.delete(a)
         db.commit()
@@ -2098,7 +2225,11 @@ def _maybe_strava_autosync(athlete: Athlete, db: Session) -> None:
         after = int(time.time()) - 45 * 24 * 3600  # últimos ~45 dias
         parsed = strava_api.fetch_activities(token, after_epoch=after,
                                              max_pages=3, timeout=8)
+        _today = today_br()
+        _before = notifications.snapshot(db, athlete.id, _today)
         _insert_parsed_workouts(db, athlete, parsed)
+        notifications.emit_progress(
+            db, athlete.id, _before, notifications.snapshot(db, athlete.id, _today), _today)
     except Exception:
         pass  # Strava lento/fora não pode travar o app
     athlete.strava_last_sync_at = now_br()
@@ -2119,9 +2250,16 @@ def strava_import(request: Request, db: Session = Depends(get_db)):
             _import_ctx(request, athlete, db,
                         strava_error="Falha ao buscar atividades no Strava. Tente de novo."),
         )
+    _today = today_br()
+    _before = notifications.snapshot(db, athlete.id, _today)
     inserted, skipped_dup, by_sport = _insert_parsed_workouts(db, athlete, parsed)
     athlete.strava_last_sync_at = now_br()
     db.commit()
+    try:
+        notifications.emit_progress(
+            db, athlete.id, _before, notifications.snapshot(db, athlete.id, _today), _today)
+    except Exception:
+        pass
     return templates.TemplateResponse(
         "import.html",
         _import_ctx(request, athlete, db, strava_result={

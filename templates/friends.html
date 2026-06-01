@@ -19,7 +19,7 @@
 
 <section class="form" style="max-width: 520px;">
     <h2 class="form-title">Adicionar amigo</h2>
-    {% if ok %}<div class="alert alert-success"><strong>{{ ok }}</strong> foi adicionado ao seu ranking.</div>{% endif %}
+    {% if ok %}<div class="alert alert-success">Pedido enviado para <strong>{{ ok }}</strong>. Quando aceitar, vocês competem no ranking.</div>{% endif %}
     {% if erro == "naoachou" %}<div class="alert alert-error">Não encontrei ninguém com esse código.</div>
     {% elif erro == "voce" %}<div class="alert alert-error">Esse é o seu próprio código. :)</div>
     {% elif erro == "jaadd" %}<div class="alert alert-error">Essa pessoa já está no seu ranking.</div>{% endif %}
@@ -30,12 +30,12 @@
             <div class="confirm-name">{{ pending.name }}</div>
             <div class="confirm-code">{{ pending.code }}</div>
         </div>
-        <p class="hint">É essa pessoa que você quer adicionar ao seu ranking?</p>
+        <p class="hint">Enviar um pedido de amizade para essa pessoa?</p>
         <div class="confirm-actions">
             <a href="/amigos" class="btn-ghost btn-small">Cancelar</a>
             <form method="post" action="/amigos/adicionar">
                 <input type="hidden" name="code" value="{{ pending.code }}" />
-                <button type="submit" class="btn-primary btn-small">Confirmar e adicionar</button>
+                <button type="submit" class="btn-primary btn-small">Enviar pedido</button>
             </form>
         </div>
     </div>
@@ -51,6 +51,47 @@
     </form>
     {% endif %}
 </section>
+
+{% if received %}
+<section class="recent" style="margin-top: 24px;">
+    <div class="section-head"><h2>Pedidos recebidos ({{ received|length }})</h2></div>
+    <div class="friend-list">
+        {% for r in received %}
+        <div class="friend-row">
+            <span class="friend-name">
+                {% if r.athlete.photo_mime %}<img class="avatar avatar-xs" src="/atletas/{{ r.athlete.id }}/foto" alt="" />{% endif %}
+                {{ r.athlete.name }}
+            </span>
+            <span class="friend-req-actions">
+                <form method="post" action="/amigos/{{ r.fid }}/aceitar">
+                    <button type="submit" class="btn-primary btn-small">Aceitar</button>
+                </form>
+                <form method="post" action="/amigos/{{ r.fid }}/recusar">
+                    <button type="submit" class="btn-ghost btn-small">Recusar</button>
+                </form>
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
+{% if sent %}
+<section class="recent" style="margin-top: 24px;">
+    <div class="section-head"><h2>Pedidos enviados</h2></div>
+    <div class="friend-list">
+        {% for s in sent %}
+        <div class="friend-row">
+            <span class="friend-name">
+                {% if s.athlete.photo_mime %}<img class="avatar avatar-xs" src="/atletas/{{ s.athlete.id }}/foto" alt="" />{% endif %}
+                {{ s.athlete.name }}
+            </span>
+            <span class="hint" style="margin:0;">aguardando…</span>
+        </div>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
 
 <section class="recent" style="margin-top: 24px;">
     <div class="section-head"><h2>Meus amigos ({{ friends|length }})</h2></div>

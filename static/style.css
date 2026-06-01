@@ -2000,6 +2000,67 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
     border-radius: 10px;
 }
 .friend-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+.friend-req-actions { display: flex; gap: 8px; align-items: center; }
+.friend-req-actions form { display: inline; }
+
+/* ---------- sininho de notificações ---------- */
+.notif-bell {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    color: var(--text-2);
+    text-decoration: none;
+}
+.notif-bell:hover { background: var(--panel-2); color: var(--text); }
+.notif-badge {
+    position: absolute;
+    top: 4px; right: 4px;
+    min-width: 17px; height: 17px;
+    padding: 0 4px;
+    border-radius: 100px;
+    background: #ef4444;
+    color: #fff;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 17px;
+    text-align: center;
+    box-shadow: 0 0 0 2px var(--bg);
+}
+.notif-badge[hidden] { display: none; }
+
+/* ---------- página de notificações ---------- */
+.notif-list { display: flex; flex-direction: column; gap: 10px; }
+.notif-item {
+    display: flex;
+    gap: 12px;
+    align-items: flex-start;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 14px;
+}
+.notif-item.is-unread { border-color: var(--accent); background: rgba(59,130,246,0.06); }
+.notif-ico {
+    flex-shrink: 0;
+    width: 40px; height: 40px;
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    background: var(--panel-2);
+    color: var(--accent);
+}
+.notif-ico svg { width: 20px; height: 20px; }
+.notif-trophy .notif-ico { color: #fbbf24; }
+.notif-goal .notif-ico, .notif-challenge .notif-ico { color: #34d399; }
+.notif-workout .notif-ico { color: #60a5fa; }
+.notif-body { flex: 1; min-width: 0; }
+.notif-title { font-weight: 600; }
+.notif-text { color: var(--muted); font-size: 0.88rem; margin-top: 2px; }
+.notif-actions { display: flex; gap: 8px; margin-top: 10px; }
+.notif-actions form { display: inline; }
+.notif-link { display: inline-block; margin-top: 8px; color: var(--accent); font-size: 0.85rem; text-decoration: none; font-weight: 600; }
 
 /* confirmação de adicionar amigo (mostra o nome) */
 .confirm-card {

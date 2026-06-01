@@ -44,6 +44,8 @@ BADGES = [
     Badge("cal50k", "zap", "#fb923c", "Usina", "50.000 kcal queimadas", "cal", 50000),
 ]
 
+BADGES_BY_ID = {b.id: b for b in BADGES}
+
 
 def evaluate(db: Session, athlete_id: int) -> dict:
     """Retorna {unlocked: [...], locked: [...], count, total} com progresso."""

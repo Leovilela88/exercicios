@@ -30,12 +30,30 @@ class Athlete(Base):
 
 
 class Friendship(Base):
-    """Quem o atleta `athlete_id` adicionou (para o ranking de amigos)."""
+    """Vínculo de amizade. `athlete_id` -> `friend_id`.
+    status: 'pending' (pedido enviado, aguardando) | 'accepted'."""
     __tablename__ = "friendships"
 
     id = Column(Integer, primary_key=True, index=True)
     athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
     friend_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    status = Column(String(10), nullable=False, default="accepted")
+    created_at = Column(DateTime, server_default=func.now())
+
+
+class Notification(Base):
+    """Notificação para um atleta (pedido de amizade, troféu, meta, etc.)."""
+    __tablename__ = "notifications"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    type = Column(String(20), nullable=False)  # friend_request|friend_accepted|workout|trophy|goal|challenge
+    title = Column(String(160), nullable=False)
+    body = Column(String(300), nullable=True)
+    link = Column(String(120), nullable=True)
+    ref = Column(String(60), nullable=True)        # dedupe (ex: trophy:run10)
+    action_id = Column(Integer, nullable=True)     # ex: id da friendship p/ aceitar
+    read = Column(Integer, nullable=False, default=0)
     created_at = Column(DateTime, server_default=func.now())
 
 

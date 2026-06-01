@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "_macros.html" import bicon %}
+{% block title %}Notificações - MultiFit{% endblock %}
+
+{% macro notif_icon(t) %}
+{% if t == 'friend_request' or t == 'friend_accepted' %}{{ bicon('award') }}
+{% elif t == 'trophy' %}{{ bicon('trophy') }}
+{% elif t == 'goal' %}{{ bicon('target') }}
+{% elif t == 'challenge' %}{{ bicon('medal') }}
+{% elif t == 'workout' %}{{ bicon('run') }}
+{% else %}{{ bicon('star') }}{% endif %}
+{% endmacro %}
+
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Notificações</h1>
+        <p class="page-sub">Pedidos de amizade, conquistas e novidades dos amigos.</p>
+    </div>
+</header>
+
+{% if items %}
+<div class="notif-list">
+    {% for n in items %}
+    <article class="notif-item {% if not n.read %}is-unread{% endif %} notif-{{ n.type }}">
+        <span class="notif-ico">{{ notif_icon(n.type) }}</span>
+        <div class="notif-body">
+            <div class="notif-title">{{ n.title }}</div>
+            {% if n.body %}<div class="notif-text">{{ n.body }}</div>{% endif %}
+            {% if n.type == 'friend_request' and n.action_id in pending_req_ids %}
+            <div class="notif-actions">
+                <form method="post" action="/amigos/{{ n.action_id }}/aceitar"><button class="btn-primary btn-small" type="submit">Aceitar</button></form>
+                <form method="post" action="/amigos/{{ n.action_id }}/recusar"><button class="btn-ghost btn-small" type="submit">Recusar</button></form>
+            </div>
+            {% elif n.link %}
+            <a class="notif-link" href="{{ n.link }}">Ver →</a>
+            {% endif %}
+        </div>
+    </article>
+    {% endfor %}
+</div>
+{% else %}
+<p class="empty">Nenhuma notificação por aqui ainda.</p>
+{% endif %}
+{% endblock %}

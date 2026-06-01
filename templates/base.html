@@ -15,7 +15,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/static/style.css?v=47" />
+    <link rel="stylesheet" href="/static/style.css?v=48" />
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 </head>
 <body>
@@ -28,6 +28,10 @@
         </a>
         <div class="nav-right">
             {% if athlete %}
+            <a href="/notificacoes" class="notif-bell" title="Notificações" aria-label="Notificações">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg>
+                <span class="notif-badge" id="notif-badge" hidden>0</span>
+            </a>
             <details class="athlete-switch">
                 <summary>
                     {% if athlete.photo_mime %}
@@ -276,6 +280,19 @@
         document.addEventListener('visibilitychange', () => {
             document.hidden ? stop() : start();
         });
+    })();
+</script>
+<script>
+    // Badge de notificações não lidas no sininho.
+    (function () {
+        const badge = document.getElementById('notif-badge');
+        if (!badge) return;
+        fetch('/api/notif-count').then(r => r.json()).then(j => {
+            if (j && j.unread > 0) {
+                badge.textContent = j.unread > 9 ? '9+' : j.unread;
+                badge.hidden = false;
+            }
+        }).catch(() => {});
     })();
 </script>
 <script>window.MF_ATHLETE = {{ (athlete.name if athlete else "")|tojson }};</script>
