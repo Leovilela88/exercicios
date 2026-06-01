@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Importar do Strava - MultiFit{% endblock %}
+{% block title %}Conectar com o Strava - MultiFit{% endblock %}
 {% block content %}
 <header class="page-header">
     <div>
-        <h1 class="page-title">Importar do Strava</h1>
-        <p class="page-sub">Conecte sua conta do Strava ou suba o <code>activities.csv</code> do export.</p>
+        <h1 class="page-title">Conectar com o Strava</h1>
+        <p class="page-sub">Conecte sua conta e traga os treinos automaticamente — os novos entram sozinhos.</p>
     </div>
 </header>
 
@@ -30,7 +30,7 @@
         <div class="strava-status">
             <span class="strava-dot"></span> Conta do Strava conectada
         </div>
-        <p class="hint">Importe seus treinos com um clique. Duplicatas são ignoradas — pode repetir sem medo.</p>
+        <p class="hint">Importe seus treinos com um clique. Duplicatas são ignoradas — pode repetir sem medo. Os treinos novos também entram sozinhos ao abrir o app.</p>
         <div class="strava-actions">
             <form method="post" action="/strava/importar">
                 <button type="submit" class="btn-strava">Importar do Strava agora</button>
@@ -40,111 +40,17 @@
             </form>
         </div>
         {% else %}
-        <p class="hint" style="margin:0 0 12px;">Conecte sua conta e traga os treinos automaticamente, sem exportar arquivo.</p>
+        <p class="hint" style="margin:0 0 12px;">Conecte sua conta e traga os treinos automaticamente, sem exportar arquivo nenhum.</p>
         <a href="/strava/conectar" class="btn-strava">Conectar com o Strava</a>
         {% endif %}
         <p class="strava-powered">Powered by Strava</p>
     </div>
 </section>
-
-<div class="or-divider"><span>ou suba o arquivo CSV</span></div>
+{% else %}
+<div class="alert alert-error">A integração com o Strava ainda não está configurada.</div>
 {% endif %}
-
-{% if result %}
-    {% if result.error %}
-    <div class="alert alert-error">
-        <strong>Não rolou:</strong> {{ result.error }}
-        {% if result.headers_found %}
-        <div class="hint" style="margin-top:8px;">Colunas detectadas: {{ result.headers_found|join(', ') }}</div>
-        {% endif %}
-    </div>
-    {% elif result.ok %}
-    <div class="alert alert-success">
-        <strong>{{ result.inserted }} treino{{ 's' if result.inserted != 1 else '' }} importado{{ 's' if result.inserted != 1 else '' }}</strong>
-        de <code>{{ result.filename }}</code> · {{ result.total_rows }} linha{{ 's' if result.total_rows != 1 else '' }} processada{{ 's' if result.total_rows != 1 else '' }}.
-        <ul class="result-list">
-            {% if result.by_sport.corrida %}<li>Corrida: {{ result.by_sport.corrida }}</li>{% endif %}
-            {% if result.by_sport.natacao %}<li>Natação: {{ result.by_sport.natacao }}</li>{% endif %}
-            {% if result.by_sport.musculacao %}<li>Musculação: {{ result.by_sport.musculacao }}</li>{% endif %}
-            {% if result.by_sport.trilha %}<li>Trilha: {{ result.by_sport.trilha }}</li>{% endif %}
-            {% if result.by_sport.bike %}<li>Bike: {{ result.by_sport.bike }}</li>{% endif %}
-            {% if result.by_sport.outro %}<li>Outro: {{ result.by_sport.outro }}</li>{% endif %}
-            {% if result.skipped_dup %}<li class="muted">{{ result.skipped_dup }} duplicado{{ 's' if result.skipped_dup != 1 else '' }} ignorado{{ 's' if result.skipped_dup != 1 else '' }}</li>{% endif %}
-            {% if result.skipped_bad %}<li class="muted">{{ result.skipped_bad }} linha{{ 's' if result.skipped_bad != 1 else '' }} com data inválida ignorada{{ 's' if result.skipped_bad != 1 else '' }}</li>{% endif %}
-        </ul>
-        <p style="margin: 12px 0 0;"><a href="/" class="btn-primary btn-small">Ver dashboard</a></p>
-    </div>
-    {% endif %}
-{% endif %}
-
-<section class="panel-section">
-    <div class="section-head"><h2>Passo a passo</h2></div>
-    <div class="steps">
-        <div class="step">
-            <span class="step-num">1</span>
-            <div class="step-body">
-                <strong>Abra o Strava no navegador</strong>
-                <p>Acesse <a href="https://www.strava.com" target="_blank" rel="noopener">strava.com</a> e faça login (no computador ou no navegador do celular — não funciona pelo app).</p>
-            </div>
-        </div>
-        <div class="step">
-            <span class="step-num">2</span>
-            <div class="step-body">
-                <strong>Vá em "Baixar seus dados"</strong>
-                <p>Menu <strong>Configurações → Minha Conta → "Baixar ou Excluir Sua Conta"</strong>.</p>
-            </div>
-        </div>
-        <div class="step">
-            <span class="step-num">3</span>
-            <div class="step-body">
-                <strong>Solicite o arquivo</strong>
-                <p>Em <strong>"Baixar Solicitação (opcional)"</strong>, clique em <strong>"Solicitar seus Arquivos"</strong>.</p>
-            </div>
-        </div>
-        <div class="step">
-            <span class="step-num">4</span>
-            <div class="step-body">
-                <strong>Espere o e-mail do Strava</strong>
-                <p>Pode levar de alguns minutos a algumas horas. Você recebe um link para baixar um arquivo <code>.zip</code>.</p>
-            </div>
-        </div>
-        <div class="step">
-            <span class="step-num">5</span>
-            <div class="step-body">
-                <strong>Descompacte e pegue o <code>activities.csv</code></strong>
-                <p>Abra o <code>.zip</code> baixado e localize o arquivo <code>activities.csv</code> lá dentro.</p>
-            </div>
-        </div>
-        <div class="step">
-            <span class="step-num">6</span>
-            <div class="step-body">
-                <strong>Suba o arquivo aqui embaixo</strong>
-                <p>Selecione o <code>activities.csv</code> no campo de upload e clique em Importar. Pronto!</p>
-            </div>
-        </div>
-    </div>
-</section>
-
-<form method="post" action="/importar" enctype="multipart/form-data" class="form" style="max-width: 640px;">
-    <h2 class="form-title">Subir o arquivo</h2>
-    <label>
-        <span>Arquivo <code>activities.csv</code> do Strava</span>
-        <input type="file" name="file" accept=".csv,text/csv" required />
-    </label>
-    <p class="hint">
-        Os treinos vão para o atleta ativo: <strong>{{ athlete.name }}</strong> (troque no menu se for de outra pessoa).
-        Duplicatas são ignoradas automaticamente — pode rodar mais de uma vez sem medo.
-    </p>
-    <div class="actions">
-        <a href="/" class="btn-ghost">Voltar</a>
-        <button type="submit" class="btn-primary">Importar treinos</button>
-    </div>
-</form>
 
 <p class="hint" style="margin-top: 16px;">
-    O Strava traz corrida, natação, bike, trilha, caminhada e musculação. Quando o arquivo não tem calorias para uma atividade, o app estima a partir do peso do atleta.
-</p>
-<p class="hint" style="margin-top: 8px;">
     Usa <strong>Garmin</strong>? Dá para importar direto do Garmin Connect na <a href="/importar/garmin">importação da Garmin</a>.
 </p>
 {% endblock %}

@@ -748,6 +748,8 @@ def dashboard(
             "share_period": share_period,
             "streak": streak,
             "has_any_workout": has_any_workout,
+            "strava_configured": strava_api.is_configured(),
+            "strava_connected": bool(athlete.strava_access_token),
             "comparison": comparison,
             "records": records,
             "goals_progress": goals_progress,

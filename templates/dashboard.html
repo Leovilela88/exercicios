@@ -13,15 +13,19 @@
     </div>
 </header>
 
-{% if not has_any_workout %}
+{% if not has_any_workout and strava_configured %}
 <section class="onboard-card">
     <div class="onboard-icon">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
     </div>
     <div class="onboard-body">
-        <h2>Importe seus treinos do Strava</h2>
-        <p>Já treina e registra no Strava? Traga todo o seu histórico de uma vez — corrida, natação, bike, trilha e musculação — em poucos cliques.</p>
-        <a href="/importar" class="btn-primary">Importar do Strava</a>
+        <h2>Conecte seu Strava</h2>
+        <p>Traga seus treinos automaticamente — corrida, natação, bike, trilha e musculação. Conecte uma vez e os treinos novos entram sozinhos.</p>
+        {% if strava_connected %}
+        <a href="/importar" class="btn-strava">Importar do Strava</a>
+        {% else %}
+        <a href="/strava/conectar" class="btn-strava">Conectar com o Strava</a>
+        {% endif %}
     </div>
 </section>
 {% endif %}
