@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Entrar - MultiFit</title>
+    <link rel="manifest" href="/static/manifest.webmanifest" />
+    <meta name="theme-color" content="#050810" />
+    <link rel="icon" type="image/png" href="/static/icon-192.png" />
+    <link rel="apple-touch-icon" href="/static/icon-192.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css?v=37" />
+</head>
+<body class="auth-body">
+<div class="auth-card">
+    <div class="auth-brand">
+        <img src="/static/logo-icon.png" alt="" class="auth-logo" onerror="this.remove()" />
+        <span>MultiFit</span>
+    </div>
+
+    {% if first_access %}
+    <h1 class="auth-title">Primeiro acesso</h1>
+    <p class="auth-sub">Sua conta já existe com seus treinos. Defina um usuário e uma senha para acessá-la.</p>
+    {% if erro %}<div class="auth-error">Usuário (mín. 3) e senha (mín. 4) inválidos. Tente de novo.</div>{% endif %}
+    <form method="post" action="/primeiro-acesso" class="auth-form">
+        <label><span>Usuário</span>
+            <input type="text" name="username" required minlength="3" maxlength="30" autocomplete="username" autocapitalize="none" autocorrect="off" />
+        </label>
+        <label><span>Senha</span>
+            <input type="password" name="password" required minlength="4" autocomplete="new-password" />
+        </label>
+        <button type="submit" class="btn-primary auth-btn">Definir senha e entrar</button>
+    </form>
+    {% else %}
+    <h1 class="auth-title">Entrar</h1>
+    <p class="auth-sub">Bem-vindo de volta ao MultiFit.</p>
+    {% if erro %}<div class="auth-error">Usuário ou senha incorretos.</div>{% endif %}
+    <form method="post" action="/entrar" class="auth-form">
+        <label><span>Usuário</span>
+            <input type="text" name="username" required autocomplete="username" autocapitalize="none" autocorrect="off" />
+        </label>
+        <label><span>Senha</span>
+            <input type="password" name="password" required autocomplete="current-password" />
+        </label>
+        <button type="submit" class="btn-primary auth-btn">Entrar</button>
+    </form>
+    <p class="auth-foot">Não tem conta? <a href="/registrar">Criar conta</a></p>
+    {% endif %}
+</div>
+</body>
+</html>

@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Amigos - MultiFit{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Amigos</h1>
+        <p class="page-sub">Adicione amigos pelo código para competir no ranking.</p>
+    </div>
+</header>
+
+<section class="panel-section">
+    <div class="code-card">
+        <div class="code-label">Seu código de amigo</div>
+        <div class="code-value" id="my-code">{{ athlete.friend_code }}</div>
+        <button type="button" class="btn-ghost btn-small" onclick="navigator.clipboard && navigator.clipboard.writeText('{{ athlete.friend_code }}')">Copiar</button>
+    </div>
+    <p class="hint">Compartilhe esse código com a galera. Quem tiver ele consegue te adicionar no ranking.</p>
+</section>
+
+<section class="form" style="max-width: 520px;">
+    <h2 class="form-title">Adicionar amigo</h2>
+    {% if ok %}<div class="alert alert-success"><strong>{{ ok }}</strong> foi adicionado ao seu ranking.</div>{% endif %}
+    {% if erro == "naoachou" %}<div class="alert alert-error">Não encontrei ninguém com esse código.</div>
+    {% elif erro == "voce" %}<div class="alert alert-error">Esse é o seu próprio código. :)</div>{% endif %}
+    <form method="post" action="/amigos/adicionar">
+        <label>
+            <span>Código do amigo</span>
+            <input type="text" name="code" required maxlength="12" placeholder="ex: MF-7F3K2" autocapitalize="characters" autocorrect="off" style="text-transform: uppercase;" />
+        </label>
+        <div class="actions">
+            <button type="submit" class="btn-primary">Adicionar</button>
+        </div>
+    </form>
+</section>
+
+<section class="recent" style="margin-top: 24px;">
+    <div class="section-head"><h2>Meus amigos ({{ friends|length }})</h2></div>
+    {% if friends %}
+    <div class="friend-list">
+        {% for f in friends %}
+        <div class="friend-row">
+            <span class="friend-name">
+                {% if f.athlete.photo_mime %}<img class="avatar avatar-xs" src="/atletas/{{ f.athlete.id }}/foto" alt="" />{% endif %}
+                {{ f.athlete.name }}
+            </span>
+            <form method="post" action="/amigos/{{ f.fid }}/remover" onsubmit="return confirm('Remover {{ f.athlete.name }} do ranking?');">
+                <button type="submit" class="btn-icon" title="Remover">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+                </button>
+            </form>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty">Você ainda não adicionou ninguém. Peça o código dos seus amigos!</p>
+    {% endif %}
+</section>
+{% endblock %}

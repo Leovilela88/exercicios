@@ -1,10 +1,10 @@
 {% extends "base.html" %}
-{% block title %}Atletas - MultiFit{% endblock %}
+{% block title %}Meu perfil - MultiFit{% endblock %}
 {% block content %}
 <header class="page-header">
     <div>
-        <h1 class="page-title">Atletas</h1>
-        <p class="page-sub">Cada atleta tem seu próprio peso, perfil e histórico de treinos.</p>
+        <h1 class="page-title">Meu perfil</h1>
+        <p class="page-sub">Seus dados pessoais e de conta.</p>
     </div>
     {% if db_dialect == 'postgresql' %}
     <span class="db-badge db-ok" title="Postgres está conectado: dados persistem entre deploys">
@@ -19,9 +19,9 @@
     {% endif %}
 </header>
 
+{% set a = athlete %}
 <section class="athlete-grid">
-    {% for a in athletes %}
-    <article class="athlete-card {% if athlete and a.id == athlete.id %}is-active{% endif %}">
+    <article class="athlete-card is-active">
         <header>
             <div class="athlete-head">
                 <label class="avatar-edit" title="Trocar foto">
@@ -39,24 +39,19 @@
                 <form method="post" id="photo-form-{{ a.id }}" action="/atletas/{{ a.id }}/foto" enctype="multipart/form-data" hidden></form>
                 <div class="athlete-title">
                     <h3>{{ a.name }}</h3>
-                    {% if athlete and a.id == athlete.id %}<span class="badge">ativo</span>{% endif %}
+                    {% if a.username %}<span class="badge">@{{ a.username }}</span>{% endif %}
                 </div>
             </div>
-            <div class="athlete-actions">
-                {% if not (athlete and a.id == athlete.id) %}
-                <form method="post" action="/atletas/{{ a.id }}/select">
-                    <button class="btn-ghost btn-small" type="submit">Selecionar</button>
-                </form>
-                {% endif %}
-                {% if athletes|length > 1 %}
-                <form method="post" action="/atletas/{{ a.id }}/delete" onsubmit="return confirm('Excluir {{ a.name }} e TODOS os seus treinos?');">
-                    <button class="btn-icon" type="submit" title="Excluir atleta">
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2m3 0v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/></svg>
-                    </button>
-                </form>
-                {% endif %}
-            </div>
         </header>
+
+        {% if a.friend_code %}
+        <div class="code-card" style="margin: 14px 0;">
+            <div class="code-label">Seu código de amigo</div>
+            <div class="code-value">{{ a.friend_code }}</div>
+            <a href="/amigos" class="btn-ghost btn-small">Amigos</a>
+        </div>
+        {% endif %}
+
         {% set imc = bmi(a.weight_kg, a.height_cm) %}
         {% if imc %}
         <div class="imc-row">
@@ -94,49 +89,11 @@
                     </select>
                 </label>
             </div>
+            <p class="hint">Apenas o <strong>peso</strong> entra no cálculo de calorias (<code>MET × peso × horas</code>). Altura, idade e sexo são guardados para IMC e métricas futuras.</p>
             <div class="actions">
                 <button type="submit" class="btn-primary btn-small">Salvar alterações</button>
             </div>
         </form>
     </article>
-    {% endfor %}
-</section>
-
-<section class="form" style="margin-top: 24px;">
-    <h2 class="form-title">Adicionar novo atleta</h2>
-    <form method="post" action="/atletas">
-        <div class="row">
-            <label>
-                <span>Nome</span>
-                <input type="text" name="name" required maxlength="80" placeholder="ex: Maria" />
-            </label>
-            <label>
-                <span>Peso (kg)</span>
-                <input type="number" step="0.1" min="20" max="250" name="weight_kg" required placeholder="ex: 65.0" />
-            </label>
-        </div>
-        <div class="row">
-            <label>
-                <span>Altura (cm)</span>
-                <input type="number" step="0.1" min="80" max="250" name="height_cm" placeholder="opcional" />
-            </label>
-            <label>
-                <span>Idade</span>
-                <input type="number" step="1" min="5" max="120" name="age" placeholder="opcional" />
-            </label>
-            <label>
-                <span>Sexo</span>
-                <select name="sex">
-                    <option value="">—</option>
-                    <option value="M">Masculino</option>
-                    <option value="F">Feminino</option>
-                </select>
-            </label>
-        </div>
-        <p class="hint">Apenas o <strong>peso</strong> entra no cálculo de calorias (fórmula <code>MET × peso × horas</code>). Altura, idade e sexo são guardados para contexto e métricas futuras (IMC, evolução).</p>
-        <div class="actions">
-            <button type="submit" class="btn-primary">Adicionar atleta</button>
-        </div>
-    </form>
 </section>
 {% endblock %}

@@ -1,11 +1,14 @@
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 from typing import Optional
 
 import io
+import os
+import secrets
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.templating import Jinja2Templates
+from starlette.middleware.sessions import SessionMiddleware
 from sqlalchemy import func, inspect, text
 from sqlalchemy.orm import Session
 
@@ -19,10 +22,11 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
 from metrics import bmi, bmi_category, pace, sport_label, workout_share
-from models import (Athlete, ExerciseEntry, Goal, Race, Routine, RoutineItem,
-                    Settings, WeightLog, Workout)
+from models import (Athlete, ExerciseEntry, Friendship, Goal, Race, Routine,
+                    RoutineItem, Settings, WeightLog, Workout)
 from strava_import import parse_strava_csv
 import achievements
+import auth
 import stats
 
 SPORTS = ("corrida", "natacao", "musculacao", "trilha", "bike", "outro")
@@ -50,7 +54,7 @@ def _init_db() -> None:
                 else:
                     conn.execute(text("ALTER TABLE workouts ADD COLUMN athlete_id INTEGER"))
 
-    # Colunas de foto em athletes podem não existir em bases pré-migração.
+    # Colunas de foto + conta em athletes podem não existir em bases pré-migração.
     if "athletes" in insp.get_table_names():
         cols = {c["name"] for c in insp.get_columns("athletes")}
         photo_type = "BYTEA" if engine.dialect.name == "postgresql" else "BLOB"
@@ -59,9 +63,27 @@ def _init_db() -> None:
                 conn.execute(text(f"ALTER TABLE athletes ADD COLUMN photo {photo_type}"))
             if "photo_mime" not in cols:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN photo_mime VARCHAR(50)"))
+            if "username" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN username VARCHAR(30)"))
+            if "password_hash" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN password_hash VARCHAR(255)"))
+            if "friend_code" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN friend_code VARCHAR(12)"))
+            if "is_admin" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN is_admin INTEGER DEFAULT 0"))
+            if "last_seen_at" not in cols:
+                conn.execute(text("ALTER TABLE athletes ADD COLUMN last_seen_at TIMESTAMP"))
 
     db = SessionLocal()
     try:
+        # Gera friend_code para atletas que ainda não têm.
+        for a in db.query(Athlete).filter(Athlete.friend_code.is_(None)).all():
+            code = auth.gen_friend_code()
+            while db.query(Athlete).filter(Athlete.friend_code == code).first():
+                code = auth.gen_friend_code()
+            a.friend_code = code
+        db.commit()
+
         if not db.query(Athlete).first():
             weight = 82.0
             try:
@@ -70,7 +92,8 @@ def _init_db() -> None:
                     weight = float(legacy.weight_kg)
             except Exception:
                 pass
-            leo = Athlete(name="Leonardo", weight_kg=weight)
+            leo = Athlete(name="Leonardo", weight_kg=weight,
+                          friend_code=auth.gen_friend_code())
             db.add(leo)
             db.commit()
             db.refresh(leo)
@@ -126,6 +149,33 @@ app = FastAPI(title="Exercícios")
 app.mount("/static", StaticFiles(directory="static"), name="static")
 templates = Jinja2Templates(directory="templates")
 
+# Caminhos que não exigem login.
+PUBLIC_PREFIXES = ("/static", "/sw.js", "/offline", "/manifest.webmanifest",
+                   "/entrar", "/registrar", "/sair", "/primeiro-acesso", "/healthz")
+
+
+@app.middleware("http")
+async def require_login(request: Request, call_next):
+    path = request.url.path
+    if any(path == p or path.startswith(p + "/") or path.startswith(p) for p in PUBLIC_PREFIXES):
+        return await call_next(request)
+    aid = request.session.get("athlete_id")
+    if not aid:
+        return RedirectResponse(url="/entrar", status_code=303)
+    return await call_next(request)
+
+
+# SECRET_KEY assina o cookie de sessão. Defina no Railway; sem ela, gera uma
+# efêmera (as sessões caem a cada deploy, mas o app não quebra).
+_SECRET = os.environ.get("SECRET_KEY") or secrets.token_hex(32)
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=_SECRET,
+    https_only=False,
+    same_site="lax",
+    max_age=60 * 60 * 24 * 30,  # 30 dias
+)
+
 # Helpers disponíveis nos templates Jinja
 templates.env.globals["pace"] = pace
 templates.env.globals["sport_label"] = sport_label
@@ -155,23 +205,216 @@ def _to_int(value: Optional[str]) -> Optional[int]:
 
 
 def get_active_athlete(request: Request, db: Session = Depends(get_db)) -> Athlete:
-    aid = request.cookies.get("athlete_id")
-    athlete = None
-    if aid and aid.isdigit():
-        athlete = db.query(Athlete).filter(Athlete.id == int(aid)).first()
+    """Atleta logado (vem da sessão). O middleware require_login garante que
+    há sessão nas rotas protegidas."""
+    aid = request.session.get("athlete_id")
+    athlete = db.query(Athlete).filter(Athlete.id == aid).first() if aid else None
     if not athlete:
-        athlete = db.query(Athlete).order_by(Athlete.id).first()
-    if not athlete:
-        # fallback final (raro): cria um atleta vazio
-        athlete = Athlete(name="Atleta", weight_kg=70.0)
-        db.add(athlete)
-        db.commit()
-        db.refresh(athlete)
+        raise HTTPException(status_code=401)
     return athlete
 
 
 def get_all_athletes(db: Session) -> list[Athlete]:
     return db.query(Athlete).order_by(Athlete.id).all()
+
+
+def friend_ids(db: Session, athlete_id: int) -> list[int]:
+    """IDs do atleta + amigos que ele adicionou (para o ranking)."""
+    rows = db.query(Friendship.friend_id).filter(
+        Friendship.athlete_id == athlete_id
+    ).all()
+    ids = {athlete_id} | {fid for (fid,) in rows}
+    return list(ids)
+
+
+def _touch_last_seen(db: Session, athlete: Athlete) -> None:
+    athlete.last_seen_at = datetime.utcnow()
+    db.commit()
+
+
+# ------------- autenticação / contas -------------
+
+def _has_any_account(db: Session) -> bool:
+    return db.query(Athlete).filter(Athlete.password_hash.isnot(None)).first() is not None
+
+
+def _unique_friend_code(db: Session) -> str:
+    code = auth.gen_friend_code()
+    while db.query(Athlete).filter(Athlete.friend_code == code).first():
+        code = auth.gen_friend_code()
+    return code
+
+
+@app.get("/entrar", response_class=HTMLResponse)
+def login_page(request: Request, db: Session = Depends(get_db), erro: Optional[str] = None):
+    if request.session.get("athlete_id"):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse(
+        "login.html",
+        {"request": request, "first_access": not _has_any_account(db), "erro": erro},
+    )
+
+
+@app.post("/entrar")
+def login_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    uname = auth.normalize_username(username)
+    a = db.query(Athlete).filter(func.lower(Athlete.username) == uname).first()
+    if not a or not a.password_hash or not auth.verify_password(password, a.password_hash):
+        return RedirectResponse(url="/entrar?erro=1", status_code=303)
+    request.session["athlete_id"] = a.id
+    _touch_last_seen(db, a)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/primeiro-acesso")
+def first_access_submit(
+    request: Request,
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    # Só funciona enquanto nenhuma conta tiver senha (reivindica a conta existente).
+    if _has_any_account(db):
+        return RedirectResponse(url="/entrar", status_code=303)
+    uname = auth.normalize_username(username)
+    if len(uname) < 3 or len(password) < 4:
+        return RedirectResponse(url="/entrar?erro=2", status_code=303)
+    # Reivindica o atleta principal (o mais antigo) — preserva todos os dados.
+    a = db.query(Athlete).order_by(Athlete.id).first()
+    if not a:
+        a = Athlete(name="Atleta", weight_kg=70.0, friend_code=_unique_friend_code(db))
+        db.add(a)
+    a.username = uname
+    a.password_hash = auth.hash_password(password)
+    a.is_admin = 1
+    if not a.friend_code:
+        a.friend_code = _unique_friend_code(db)
+    db.commit()
+    request.session["athlete_id"] = a.id
+    _touch_last_seen(db, a)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.get("/registrar", response_class=HTMLResponse)
+def register_page(request: Request, db: Session = Depends(get_db), erro: Optional[str] = None):
+    if request.session.get("athlete_id"):
+        return RedirectResponse(url="/", status_code=303)
+    return templates.TemplateResponse("register.html", {"request": request, "erro": erro})
+
+
+@app.post("/registrar")
+def register_submit(
+    request: Request,
+    name: str = Form(...),
+    username: str = Form(...),
+    password: str = Form(...),
+    db: Session = Depends(get_db),
+):
+    uname = auth.normalize_username(username)
+    nm = name.strip()[:80]
+    if len(uname) < 3 or len(password) < 4 or not nm:
+        return RedirectResponse(url="/registrar?erro=2", status_code=303)
+    if not uname.replace("_", "").replace(".", "").isalnum():
+        return RedirectResponse(url="/registrar?erro=3", status_code=303)
+    if db.query(Athlete).filter(func.lower(Athlete.username) == uname).first():
+        return RedirectResponse(url="/registrar?erro=4", status_code=303)
+    a = Athlete(
+        name=nm, weight_kg=70.0,
+        username=uname,
+        password_hash=auth.hash_password(password),
+        friend_code=_unique_friend_code(db),
+        is_admin=0,
+    )
+    db.add(a)
+    db.commit()
+    db.refresh(a)
+    request.session["athlete_id"] = a.id
+    _touch_last_seen(db, a)
+    return RedirectResponse(url="/", status_code=303)
+
+
+@app.post("/sair")
+def logout(request: Request):
+    request.session.clear()
+    return RedirectResponse(url="/entrar", status_code=303)
+
+
+# ------------- amigos -------------
+
+@app.get("/amigos", response_class=HTMLResponse)
+def friends_page(request: Request, db: Session = Depends(get_db),
+                 erro: Optional[str] = None, ok: Optional[str] = None):
+    me = get_active_athlete(request, db)
+    rows = (
+        db.query(Friendship, Athlete)
+        .join(Athlete, Friendship.friend_id == Athlete.id)
+        .filter(Friendship.athlete_id == me.id)
+        .order_by(Athlete.name).all()
+    )
+    friends = [{"fid": f.id, "athlete": a} for (f, a) in rows]
+    return templates.TemplateResponse(
+        "friends.html",
+        {"request": request, "athlete": me, "friends": friends, "erro": erro, "ok": ok},
+    )
+
+
+@app.post("/amigos/adicionar")
+def friends_add(request: Request, code: str = Form(...), db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    target_code = auth.normalize_code(code)
+    target = db.query(Athlete).filter(Athlete.friend_code == target_code).first()
+    if not target:
+        return RedirectResponse(url="/amigos?erro=naoachou", status_code=303)
+    if target.id == me.id:
+        return RedirectResponse(url="/amigos?erro=voce", status_code=303)
+    exists = db.query(Friendship).filter(
+        Friendship.athlete_id == me.id, Friendship.friend_id == target.id
+    ).first()
+    if not exists:
+        db.add(Friendship(athlete_id=me.id, friend_id=target.id))
+        db.commit()
+    return RedirectResponse(url=f"/amigos?ok={target.name}", status_code=303)
+
+
+@app.post("/amigos/{fid}/remover")
+def friends_remove(request: Request, fid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    f = db.query(Friendship).filter(
+        Friendship.id == fid, Friendship.athlete_id == me.id
+    ).first()
+    if f:
+        db.delete(f)
+        db.commit()
+    return RedirectResponse(url="/amigos", status_code=303)
+
+
+# ------------- admin -------------
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_page(request: Request, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    if not me.is_admin:
+        raise HTTPException(status_code=403)
+    accounts = (
+        db.query(Athlete).filter(Athlete.password_hash.isnot(None))
+        .order_by(Athlete.created_at.desc().nullslast(), Athlete.id.desc()).all()
+    )
+    cutoff = datetime.utcnow() - timedelta(minutes=30)
+    today_start = datetime.utcnow() - timedelta(hours=24)
+    online = sum(1 for a in accounts if a.last_seen_at and a.last_seen_at >= cutoff)
+    active_24h = sum(1 for a in accounts if a.last_seen_at and a.last_seen_at >= today_start)
+    return templates.TemplateResponse(
+        "admin.html",
+        {
+            "request": request, "athlete": me, "accounts": accounts,
+            "total": len(accounts), "online": online, "active_24h": active_24h,
+        },
+    )
 
 
 def _current_streak(active_dates: set[date], today: date) -> int:
@@ -1203,7 +1446,8 @@ def race_delete(request: Request, race_id: int, db: Session = Depends(get_db)):
 @app.get("/ranking", response_class=HTMLResponse)
 def ranking_page(request: Request, db: Session = Depends(get_db)):
     athlete = get_active_athlete(request, db)
-    athletes = get_all_athletes(db)
+    ids = friend_ids(db, athlete.id)
+    athletes = db.query(Athlete).filter(Athlete.id.in_(ids)).all()
     today = date.today()
     rows = stats.ranking(db, athletes, today)
     return templates.TemplateResponse(
@@ -1214,6 +1458,7 @@ def ranking_page(request: Request, db: Session = Depends(get_db)):
             "athletes": athletes,
             "rows": rows,
             "month_label": today.strftime("%B de %Y"),
+            "solo": len(athletes) <= 1,
         },
     )
 
@@ -1315,39 +1560,14 @@ def athletes_page(request: Request, db: Session = Depends(get_db)):
         {
             "request": request,
             "athlete": active,
-            "athletes": get_all_athletes(db),
             "db_dialect": engine.dialect.name,
         },
     )
 
 
-@app.post("/atletas")
-def athletes_create(
-    name: str = Form(...),
-    weight_kg: str = Form(...),
-    height_cm: Optional[str] = Form(None),
-    age: Optional[str] = Form(None),
-    sex: Optional[str] = Form(None),
-    db: Session = Depends(get_db),
-):
-    w = _to_float(weight_kg) or 70.0
-    a = Athlete(
-        name=name.strip()[:80] or "Atleta",
-        weight_kg=w,
-        height_cm=_to_float(height_cm),
-        age=_to_int(age),
-        sex=(sex.upper() if sex in ("M", "F", "m", "f") else None),
-    )
-    db.add(a)
-    db.commit()
-    db.refresh(a)
-    resp = RedirectResponse(url="/atletas", status_code=303)
-    resp.set_cookie("athlete_id", str(a.id), max_age=60 * 60 * 24 * 365, samesite="lax")
-    return resp
-
-
 @app.post("/atletas/{aid}/edit")
 def athletes_edit(
+    request: Request,
     aid: int,
     name: str = Form(...),
     weight_kg: str = Form(...),
@@ -1356,6 +1576,9 @@ def athletes_edit(
     sex: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
+    me = get_active_athlete(request, db)
+    if aid != me.id and not me.is_admin:
+        raise HTTPException(status_code=403)
     a = db.query(Athlete).filter(Athlete.id == aid).first()
     if a:
         a.name = name.strip()[:80] or a.name
@@ -1380,8 +1603,11 @@ def athletes_photo(aid: int, db: Session = Depends(get_db)):
 
 @app.post("/atletas/{aid}/foto")
 async def athletes_photo_upload(
-    aid: int, file: UploadFile = File(...), db: Session = Depends(get_db)
+    request: Request, aid: int, file: UploadFile = File(...), db: Session = Depends(get_db)
 ):
+    me = get_active_athlete(request, db)
+    if aid != me.id and not me.is_admin:
+        raise HTTPException(status_code=403)
     a = db.query(Athlete).filter(Athlete.id == aid).first()
     if not a:
         return RedirectResponse(url="/atletas", status_code=303)
@@ -1424,7 +1650,10 @@ async def athletes_photo_upload(
 
 
 @app.post("/atletas/{aid}/foto/delete")
-def athletes_photo_delete(aid: int, db: Session = Depends(get_db)):
+def athletes_photo_delete(request: Request, aid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    if aid != me.id and not me.is_admin:
+        raise HTTPException(status_code=403)
     a = db.query(Athlete).filter(Athlete.id == aid).first()
     if a:
         a.photo = None
@@ -1433,17 +1662,12 @@ def athletes_photo_delete(aid: int, db: Session = Depends(get_db)):
     return RedirectResponse(url="/atletas", status_code=303)
 
 
-@app.post("/atletas/{aid}/select")
-def athletes_select(aid: int, db: Session = Depends(get_db)):
-    a = db.query(Athlete).filter(Athlete.id == aid).first()
-    resp = RedirectResponse(url="/", status_code=303)
-    if a:
-        resp.set_cookie("athlete_id", str(a.id), max_age=60 * 60 * 24 * 365, samesite="lax")
-    return resp
-
-
 @app.post("/atletas/{aid}/delete")
 def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    if not me.is_admin or aid == me.id:
+        # apenas admin pode excluir contas, e nunca a própria
+        raise HTTPException(status_code=403)
     total = db.query(Athlete).count()
     if total <= 1:
         # nunca apaga o último atleta
@@ -1464,14 +1688,13 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
         db.query(Routine).filter(Routine.athlete_id == aid).delete(synchronize_session=False)
         db.query(Goal).filter(Goal.athlete_id == aid).delete(synchronize_session=False)
         db.query(WeightLog).filter(WeightLog.athlete_id == aid).delete(synchronize_session=False)
+        db.query(Friendship).filter(
+            (Friendship.athlete_id == aid) | (Friendship.friend_id == aid)
+        ).delete(synchronize_session=False)
         db.query(Workout).filter(Workout.athlete_id == aid).delete(synchronize_session=False)
         db.delete(a)
         db.commit()
-    resp = RedirectResponse(url="/atletas", status_code=303)
-    # se acabou de excluir o ativo, limpa o cookie
-    if request.cookies.get("athlete_id") == str(aid):
-        resp.delete_cookie("athlete_id")
-    return resp
+    return RedirectResponse(url="/atletas", status_code=303)
 
 
 # ------------- importar -------------

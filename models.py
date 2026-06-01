@@ -15,6 +15,22 @@ class Athlete(Base):
     photo = Column(LargeBinary, nullable=True)
     photo_mime = Column(String(50), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    # --- conta / login ---
+    username = Column(String(30), unique=True, index=True, nullable=True)
+    password_hash = Column(String(255), nullable=True)
+    friend_code = Column(String(12), unique=True, index=True, nullable=True)
+    is_admin = Column(Integer, nullable=False, default=0)  # 0/1
+    last_seen_at = Column(DateTime, nullable=True)
+
+
+class Friendship(Base):
+    """Quem o atleta `athlete_id` adicionou (para o ranking de amigos)."""
+    __tablename__ = "friendships"
+
+    id = Column(Integer, primary_key=True, index=True)
+    athlete_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    friend_id = Column(Integer, ForeignKey("athletes.id"), nullable=False, index=True)
+    created_at = Column(DateTime, server_default=func.now())
 
 
 class Workout(Base):

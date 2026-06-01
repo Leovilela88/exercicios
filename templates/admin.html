@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Admin - MultiFit{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div>
+        <h1 class="page-title">Painel admin</h1>
+        <p class="page-sub">Visão geral das contas do MultiFit.</p>
+    </div>
+</header>
+
+<section class="cards" style="margin-bottom: 24px;">
+    <div class="card"><div class="card-label">Contas criadas</div><div class="card-value">{{ total }}</div></div>
+    <div class="card"><div class="card-label">Ativas (24h)</div><div class="card-value">{{ active_24h }}</div></div>
+    <div class="card"><div class="card-label">Online agora</div><div class="card-value">{{ online }}<span> (~30 min)</span></div></div>
+</section>
+
+<section class="recent">
+    <div class="section-head"><h2>Usuários</h2></div>
+    <div class="table-wrap">
+        <table class="tbl">
+            <thead>
+            <tr>
+                <th>Nome</th>
+                <th>Usuário</th>
+                <th>Código</th>
+                <th>Admin</th>
+                <th>Criada em</th>
+                <th>Visto por último</th>
+            </tr>
+            </thead>
+            <tbody>
+            {% for a in accounts %}
+            <tr>
+                <td><strong>{{ a.name }}</strong></td>
+                <td>{{ a.username or "—" }}</td>
+                <td>{{ a.friend_code or "—" }}</td>
+                <td>{{ "sim" if a.is_admin else "—" }}</td>
+                <td>{{ a.created_at.strftime('%d/%m/%y') if a.created_at else "—" }}</td>
+                <td>{{ a.last_seen_at.strftime('%d/%m/%y %H:%M') if a.last_seen_at else "—" }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

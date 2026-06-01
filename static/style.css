@@ -1847,3 +1847,100 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
     .page-title { font-size: 1.5rem; }
     .card-value { font-size: 1.55rem; }
 }
+
+/* ---------- login / registro (telas standalone) ---------- */
+.auth-body {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: radial-gradient(120% 80% at 50% 0%, #0b1530 0%, #050810 60%);
+}
+.auth-card {
+    width: 100%;
+    max-width: 380px;
+    background: var(--panel);
+    border: 1px solid var(--border-strong);
+    border-radius: 18px;
+    padding: 32px 26px calc(28px + env(safe-area-inset-bottom));
+    box-shadow: 0 20px 60px rgba(0,0,0,0.45);
+}
+.auth-brand {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: center;
+    font-weight: 800;
+    font-size: 1.25rem;
+    margin-bottom: 22px;
+}
+.auth-logo { height: 32px; width: auto; }
+.auth-title { font-size: 1.5rem; margin: 0 0 6px; }
+.auth-sub { color: var(--muted); font-size: 0.92rem; margin: 0 0 20px; }
+.auth-form { display: flex; flex-direction: column; gap: 14px; }
+.auth-form label { display: flex; flex-direction: column; gap: 6px; }
+.auth-form label span { font-size: 0.85rem; color: var(--text-2); font-weight: 500; }
+.auth-form input {
+    width: 100%;
+    padding: 12px 14px;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 10px;
+    color: var(--text);
+    font: inherit;
+}
+.auth-form input:focus { outline: none; border-color: var(--accent); }
+.auth-btn { width: 100%; justify-content: center; margin-top: 6px; padding: 13px; }
+.auth-error {
+    background: rgba(239,68,68,0.12);
+    border: 1px solid rgba(239,68,68,0.4);
+    color: #fca5a5;
+    border-radius: 10px;
+    padding: 10px 12px;
+    font-size: 0.88rem;
+    margin-bottom: 16px;
+}
+.auth-foot { text-align: center; color: var(--muted); font-size: 0.9rem; margin: 18px 0 0; }
+.auth-foot a { color: var(--accent); font-weight: 600; text-decoration: none; }
+
+/* ---------- menu da conta ---------- */
+.dropdown-head { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+.dropdown-name-lg { font-weight: 700; }
+.dropdown-code { font-size: 0.78rem; color: var(--muted); margin-top: 2px; }
+.dropdown-code strong { color: var(--accent); letter-spacing: 0.5px; }
+.dropdown-item form, .athlete-switch .dropdown form { width: 100%; }
+.athlete-switch .dropdown form .dropdown-item { width: 100%; background: none; border: none; cursor: pointer; }
+
+/* ---------- código de amigo ---------- */
+.code-card {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-wrap: wrap;
+    background: var(--panel-2);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 14px 16px;
+}
+.code-label { font-size: 0.8rem; color: var(--muted); }
+.code-value {
+    font-size: 1.25rem;
+    font-weight: 800;
+    letter-spacing: 1px;
+    color: var(--accent);
+    flex: 1;
+    white-space: nowrap;
+}
+.friend-list { display: flex; flex-direction: column; gap: 8px; }
+.friend-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 12px 14px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+}
+.friend-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
