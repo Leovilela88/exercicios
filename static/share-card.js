@@ -511,9 +511,10 @@
         glow.addColorStop(1, 'rgba(0,0,0,0)');
         ctx.fillStyle = glow; ctx.fillRect(0, 1000, W, H - 1000);
 
-        // estilo "Rota": desenha o traçado GPS na parte de cima
+        // estilo "Rota": desenha o traçado GPS na parte de cima, deslocado um
+        // pouco pra esquerda (deixa o lado direito mais livre, ex: pra foto)
         if (payload.type === 'workout' && currentVariant() === 'route' && payload.route) {
-            drawRouteShape(payload.route, cx, 250, 840, 620, color);
+            drawRouteShape(payload.route, W * 0.40, 250, 720, 620, color);
         }
 
         drawContent(layout(H - 96));
