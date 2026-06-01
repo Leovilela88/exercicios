@@ -155,6 +155,7 @@
                 ctx.lineTo(s * 0.5, -s * 0.45); ctx.stroke();
                 ctx.beginPath(); ctx.arc(0, s * 0.25, s * 0.12, 0, Math.PI * 2); ctx.fill();
                 break;
+            case 'dumbbell':
             case 'volume': { // halter
                 const pw = s * 0.34, ph = s * 1.4;
                 roundRect(-s, -ph / 2, pw, ph, pw * 0.4); ctx.stroke();
@@ -162,6 +163,52 @@
                 ctx.beginPath(); ctx.moveTo(-s + pw, 0); ctx.lineTo(s - pw, 0); ctx.stroke();
                 break;
             }
+            case 'waves': // natação
+                for (const dy of [-s * 0.4, s * 0.4]) {
+                    ctx.moveTo(-s, dy);
+                    ctx.quadraticCurveTo(-s * 0.5, dy - s * 0.55, 0, dy);
+                    ctx.quadraticCurveTo(s * 0.5, dy + s * 0.55, s, dy);
+                }
+                ctx.stroke();
+                break;
+            case 'mountain': // trilha
+                ctx.moveTo(-s, s * 0.8);
+                ctx.lineTo(-s * 0.2, -s * 0.7);
+                ctx.lineTo(s * 0.2, s * 0.05);
+                ctx.lineTo(s * 0.5, -s * 0.35);
+                ctx.lineTo(s, s * 0.8);
+                ctx.closePath(); ctx.stroke();
+                break;
+            case 'bike':
+                ctx.arc(-s * 0.55, s * 0.35, s * 0.42, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath(); ctx.arc(s * 0.55, s * 0.35, s * 0.42, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.55, s * 0.35);
+                ctx.lineTo(s * 0.05, s * 0.35);
+                ctx.lineTo(-s * 0.1, -s * 0.35);
+                ctx.lineTo(s * 0.55, s * 0.35);
+                ctx.moveTo(-s * 0.1, -s * 0.35); ctx.lineTo(s * 0.3, -s * 0.35);
+                ctx.stroke();
+                break;
+            case 'run': // corrida (figura simples)
+                ctx.arc(s * 0.18, -s * 0.62, s * 0.22, 0, Math.PI * 2); ctx.stroke();
+                ctx.beginPath();
+                ctx.moveTo(s * 0.12, -s * 0.32); ctx.lineTo(-s * 0.06, s * 0.12);
+                ctx.moveTo(-s * 0.06, s * 0.12); ctx.lineTo(-s * 0.5, s * 0.4);
+                ctx.moveTo(-s * 0.06, s * 0.12); ctx.lineTo(s * 0.34, s * 0.55);
+                ctx.moveTo(s * 0.02, -s * 0.18); ctx.lineTo(s * 0.46, -s * 0.02);
+                ctx.moveTo(s * 0.02, -s * 0.18); ctx.lineTo(-s * 0.36, -s * 0.32);
+                ctx.stroke();
+                break;
+            case 'star': // outro
+                for (let i = 0; i < 10; i++) {
+                    const rr = i % 2 === 0 ? s : s * 0.45;
+                    const ang = -Math.PI / 2 + i * Math.PI / 5;
+                    const px = Math.cos(ang) * rr, py = Math.sin(ang) * rr;
+                    if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+                }
+                ctx.closePath(); ctx.stroke();
+                break;
             case 'count': // lista
                 for (const yy of [-s * 0.6, 0, s * 0.6]) {
                     ctx.moveTo(-s * 0.3, yy); ctx.lineTo(s, yy);
@@ -189,6 +236,18 @@
             m.bodyBottom = m.divY - 64;
             m.bodyTop = m.bodyBottom - (m.lines.length - 1) * 50;
             m.titleY = m.bodyTop - 72;
+        } else if (payload.type === 'period') {
+            // lista de esportes acima do divisor
+            const n = (payload.sports || []).length;
+            m.sportRowH = 60;
+            m.sportsBottom = m.divY - 54;       // baseline da última linha
+            m.sportsTop = m.sportsBottom - Math.max(0, n - 1) * m.sportRowH;
+            // linha de totais acima da lista
+            m.metricsLabelY = m.sportsTop - (n ? 78 : 20);
+            m.metricsValueY = m.metricsLabelY - 42;
+            m.metricsIconCy = m.metricsValueY - 74;
+            m.bodyTop = m.metricsIconCy - 30;
+            m.titleY = m.bodyTop - 58;
         } else {
             m.metricsLabelY = m.divY - 58;
             m.metricsValueY = m.metricsLabelY - 42;
@@ -217,6 +276,26 @@
         ctx.textAlign = 'center';
     }
 
+    function drawMetricsRow(mts, m, color) {
+        const cx = W / 2;
+        const n = mts.length || 1;
+        const colW = Math.min(290, 960 / n);
+        const startX = cx - (colW * n) / 2 + colW / 2;
+        mts.forEach((mt, i) => {
+            const x = startX + i * colW;
+            drawIcon(mt.icon, x, m.metricsIconCy, 25, color);
+            ctx.textAlign = 'center';
+            ctx.fillStyle = '#ffffff';
+            ctx.font = '800 48px Inter, sans-serif';
+            ctx.fillText(mt.value, x, m.metricsValueY);
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = '600 24px Inter, sans-serif';
+            if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
+            ctx.fillText((mt.label || '').toUpperCase(), x, m.metricsLabelY);
+            if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        });
+    }
+
     function drawContent(m) {
         const cx = W / 2;
         const color = payload.color;
@@ -231,8 +310,8 @@
         ctx.font = '600 32px Inter, sans-serif';
         ctx.textAlign = 'center';
         if ('letterSpacing' in ctx) ctx.letterSpacing = '2px';
-        const labelTxt = payload.type === 'badge'
-            ? 'CONQUISTA DESBLOQUEADA'
+        const labelTxt = payload.type === 'badge' ? 'CONQUISTA DESBLOQUEADA'
+            : payload.type === 'period' ? (payload.periodLabel || '').toUpperCase()
             : (payload.dateLabel || '').toUpperCase();
         if (labelTxt) ctx.fillText(labelTxt, cx, m.labelY);
         if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
@@ -240,32 +319,38 @@
         // título
         ctx.fillStyle = '#ffffff';
         ctx.font = '800 86px Inter, sans-serif';
-        ctx.fillText(payload.type === 'badge' ? payload.title : payload.sportLabel, cx, m.titleY);
+        const titleTxt = payload.type === 'badge' ? payload.title
+            : payload.type === 'period' ? 'Resumo'
+            : payload.sportLabel;
+        ctx.fillText(titleTxt, cx, m.titleY);
 
-        // corpo: descrição (badge) ou métricas (treino)
+        // corpo
         if (payload.type === 'badge') {
             ctx.fillStyle = '#cbd5e1';
             ctx.font = '400 38px Inter, sans-serif';
             m.lines.forEach((ln, i) => {
                 ctx.fillText(ln, cx, m.bodyBottom - (m.lines.length - 1 - i) * 50);
             });
-        } else {
-            const mts = payload.metrics || [];
-            const n = mts.length || 1;
-            const colW = Math.min(290, 960 / n);
-            const startX = cx - (colW * n) / 2 + colW / 2;
-            mts.forEach((mt, i) => {
-                const x = startX + i * colW;
-                drawIcon(mt.icon, x, m.metricsIconCy, 25, color);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = '800 48px Inter, sans-serif';
-                ctx.fillText(mt.value, x, m.metricsValueY);
-                ctx.fillStyle = '#94a3b8';
-                ctx.font = '600 24px Inter, sans-serif';
-                if ('letterSpacing' in ctx) ctx.letterSpacing = '1px';
-                ctx.fillText((mt.label || '').toUpperCase(), x, m.metricsLabelY);
-                if ('letterSpacing' in ctx) ctx.letterSpacing = '0px';
+        } else if (payload.type === 'period') {
+            drawMetricsRow(payload.totals || [], m, color);
+            // linha por esporte: ícone colorido + nome (cor) + distância/calorias
+            const sports = payload.sports || [];
+            const LX = cx - 380, RX = cx + 380;
+            sports.forEach((sp, i) => {
+                const y = m.sportsTop + i * m.sportRowH;
+                drawIcon(sp.icon, LX + 22, y - 12, 22, sp.color);
+                ctx.textAlign = 'left';
+                ctx.fillStyle = sp.color;
+                ctx.font = '700 36px Inter, sans-serif';
+                ctx.fillText(sp.label, LX + 56, y);
+                ctx.textAlign = 'right';
+                ctx.fillStyle = '#e2e8f0';
+                ctx.font = '500 34px Inter, sans-serif';
+                ctx.fillText(sp.main + '   ·   ' + sp.cal, RX, y);
+                ctx.textAlign = 'center';
             });
+        } else {
+            drawMetricsRow(payload.metrics || [], m, color);
         }
 
         // divisor

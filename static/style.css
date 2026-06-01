@@ -1944,3 +1944,6 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
     border-radius: 10px;
 }
 .friend-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
+
+.period-share-bar { display: flex; justify-content: center; margin: 0 0 18px; }
+.period-share-bar .btn-small { justify-content: center; }

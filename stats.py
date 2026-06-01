@@ -6,7 +6,8 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from metrics import SPORT_LABELS, pace, sport_label
+from metrics import (SPORT_COLORS, SPORT_LABELS, _fmt_distance, _fmt_duration,
+                     pace, sport_label)
 from models import Workout
 
 # Metas: rótulos e unidades por métrica
@@ -63,6 +64,58 @@ def _aggregate(db: Session, athlete_id: int, start: date, end: date,
     row = q.one()
     return {"km": float(row[0] or 0), "count": int(row[1] or 0),
             "cal": float(row[2] or 0), "min": float(row[3] or 0)}
+
+
+# ícone do card por esporte (precisa existir em static/share-card.js)
+_SPORT_ICON = {
+    "corrida": "run", "natacao": "waves", "musculacao": "dumbbell",
+    "trilha": "mountain", "bike": "bike", "outro": "star",
+}
+# ordem de exibição no card
+_SPORT_ORDER = ("corrida", "trilha", "bike", "natacao", "musculacao", "outro")
+
+
+def period_share(db: Session, athlete_id: int, start: date, end: date,
+                 period_label: str) -> dict:
+    """Payload do card de compartilhamento de um período: totais gerais +
+    desdobramento por esporte (distância e calorias), cada um na sua cor."""
+    overall = _aggregate(db, athlete_id, start, end)
+
+    sports = []
+    for sport in _SPORT_ORDER:
+        agg = _aggregate(db, athlete_id, start, end, sport=sport)
+        if agg["count"] == 0:
+            continue
+        # métrica principal do esporte: distância (ou tempo, p/ musculação)
+        if sport == "musculacao":
+            main = _fmt_duration(agg["min"]) or "—"
+        else:
+            main = _fmt_distance(agg["km"]) or _fmt_duration(agg["min"]) or "—"
+        sports.append({
+            "icon": _SPORT_ICON.get(sport, "star"),
+            "color": SPORT_COLORS.get(sport, SPORT_COLORS["outro"]),
+            "label": SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0],
+            "main": main,
+            "cal": f"{agg['cal']:.0f} kcal" if agg["cal"] else "—",
+            "count": agg["count"],
+        })
+
+    totals = []
+    totals.append({"icon": "count", "value": str(overall["count"]), "label": "Treinos"})
+    if overall["km"]:
+        totals.append({"icon": "distance", "value": _fmt_distance(overall["km"]), "label": "Distância"})
+    if overall["min"]:
+        totals.append({"icon": "clock", "value": _fmt_duration(overall["min"]), "label": "Tempo"})
+    if overall["cal"]:
+        totals.append({"icon": "flame", "value": f"{overall['cal']:.0f} kcal", "label": "Calorias"})
+
+    return {
+        "type": "period",
+        "periodLabel": period_label,
+        "color": "#60a5fa",
+        "totals": totals,
+        "sports": sports,
+    }
 
 
 def _pct(cur: float, prev: float) -> Optional[float]:

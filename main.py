@@ -667,6 +667,15 @@ def dashboard(
                 if nr.distance_km else None)
         next_race = {"r": nr, "days": (nr.date - today).days, "pred": pred}
 
+    _PERIOD_LABELS = {
+        "1w": "Última semana", "1m": "Último mês", "3m": "Últimos 3 meses",
+        "6m": "Últimos 6 meses", "1y": "Último ano",
+        "ytd": f"No ano de {today.year}", "all": "Desde o início",
+    }
+    share_period = stats.period_share(
+        db, athlete.id, start, today, _PERIOD_LABELS.get(range_key, "Período")
+    )
+
     return templates.TemplateResponse(
         "dashboard.html",
         {
@@ -674,6 +683,7 @@ def dashboard(
             "athlete": athlete,
             "athletes": get_all_athletes(db),
             "totals": totals,
+            "share_period": share_period,
             "streak": streak,
             "has_any_workout": has_any_workout,
             "comparison": comparison,
