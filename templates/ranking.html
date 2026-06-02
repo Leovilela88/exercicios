@@ -23,7 +23,10 @@
         <span class="avatar avatar-lg avatar-placeholder">{{ r.athlete.name[:1]|upper }}</span>
         {% endif %}
         <div class="rank-body">
-            <div class="rank-name">{{ r.athlete.name }}{% if r.athlete.id == athlete.id %} <span class="rank-you">você</span>{% endif %}</div>
+            <div class="rank-name">
+                {% if r.athlete.id == athlete.id %}{{ r.athlete.name }} <span class="rank-you">você</span>
+                {% else %}<a href="/amigo/{{ r.athlete.id }}" class="rank-name-link">{{ r.athlete.name }}</a>{% endif %}
+            </div>
             <div class="rank-stats">
                 <span><strong>{{ "%.1f"|format(r.km) }}</strong> km</span>
                 <span><strong>{{ r.count }}</strong> treino{{ 's' if r.count != 1 else '' }}</span>

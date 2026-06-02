@@ -2009,6 +2009,8 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 
 /* perfil resumido do amigo */
 .profile-head { display: flex; align-items: center; gap: 14px; }
+.rank-name-link { color: inherit; text-decoration: none; }
+.rank-name-link:hover { color: var(--accent); text-decoration: underline; }
 
 /* disputa de provas */
 .race-dispute {
