@@ -7,6 +7,7 @@
 {% elif t == 'trophy' %}{{ bicon('trophy') }}
 {% elif t == 'goal' %}{{ bicon('target') }}
 {% elif t == 'challenge' %}{{ bicon('medal') }}
+{% elif t == 'race_invite' %}{{ bicon('flag') }}
 {% elif t == 'workout' %}{{ bicon('run') }}
 {% else %}{{ bicon('star') }}{% endif %}
 {% endmacro %}
@@ -31,6 +32,11 @@
             <div class="notif-actions">
                 <form method="post" action="/amigos/{{ n.action_id }}/aceitar"><button class="btn-primary btn-small" type="submit">Aceitar</button></form>
                 <form method="post" action="/amigos/{{ n.action_id }}/recusar"><button class="btn-ghost btn-small" type="submit">Recusar</button></form>
+            </div>
+            {% elif n.type == 'race_invite' and n.action_id %}
+            <div class="notif-actions">
+                <form method="post" action="/provas/disputa/{{ n.action_id }}/aceitar"><button class="btn-primary btn-small" type="submit">Topar disputa</button></form>
+                <a class="btn-ghost btn-small" href="/provas">Ver provas</a>
             </div>
             {% elif n.link %}
             <a class="notif-link" href="{{ n.link }}">Ver →</a>

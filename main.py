@@ -7,6 +7,7 @@ import json
 import os
 import secrets
 import time
+import uuid
 from fastapi import Depends, FastAPI, File, Form, HTTPException, Query, Request, UploadFile
 from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -109,6 +110,13 @@ def _init_db() -> None:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_expires_at INTEGER"))
             if "strava_last_sync_at" not in cols:
                 conn.execute(text("ALTER TABLE athletes ADD COLUMN strava_last_sync_at TIMESTAMP"))
+
+    # Coluna dispute_id em races (disputa entre amigos).
+    if "races" in insp.get_table_names():
+        rcols = {c["name"] for c in insp.get_columns("races")}
+        if "dispute_id" not in rcols:
+            with engine.begin() as conn:
+                conn.execute(text("ALTER TABLE races ADD COLUMN dispute_id VARCHAR(40)"))
 
     # Coluna status em friendships (amizades antigas já contam como aceitas).
     if "friendships" in insp.get_table_names():
@@ -584,6 +592,46 @@ def notifications_page(request: Request, db: Session = Depends(get_db)):
     ).update({"read": 1}, synchronize_session=False)
     db.commit()
     return rendered
+
+
+# ------------- perfil do amigo (resumido) -------------
+
+@app.get("/amigo/{aid}", response_class=HTMLResponse)
+def friend_profile(request: Request, aid: int, db: Session = Depends(get_db)):
+    me = get_active_athlete(request, db)
+    # só dá pra ver o perfil de amigos aceitos
+    if aid == me.id or aid not in friend_ids(db, me.id):
+        raise HTTPException(status_code=403)
+    friend = db.query(Athlete).filter(Athlete.id == aid).first()
+    if not friend:
+        raise HTTPException(status_code=404)
+    today = today_br()
+    earliest = db.query(func.min(Workout.date)).filter(
+        Workout.athlete_id == aid).scalar() or today
+    allt = stats._aggregate(db, aid, earliest, today)
+    month_start = today.replace(day=1)
+    month = stats._aggregate(db, aid, month_start, today)
+    per_sport = []
+    for sp in ("corrida", "natacao", "bike", "trilha"):
+        km = stats._aggregate(db, aid, earliest, today, sport=sp)["km"]
+        if km > 0:
+            per_sport.append({"sport": sp, "label": sport_label(sp), "km": km})
+    gym = stats._aggregate(db, aid, earliest, today, sport="musculacao")["count"]
+    summary = {
+        "friend": friend,
+        "total_workouts": allt["count"],
+        "total_km": allt["km"],
+        "total_cal": allt["cal"],
+        "streak": stats.current_streak(db, aid, today),
+        "month_km": month["km"], "month_count": month["count"],
+        "per_sport": per_sport,
+        "gym_count": gym,
+        "trophies": achievements.evaluate(db, aid)["count"],
+    }
+    return templates.TemplateResponse(
+        "friend_profile.html",
+        {"request": request, "athlete": me, "p": summary},
+    )
 
 
 # ------------- admin -------------
@@ -1612,8 +1660,22 @@ def _race_view(db: Session, athlete: Athlete, r: Race, today: date) -> dict:
     pred = None
     if not r.done and r.distance_km:
         pred = stats.predict_race_time(db, athlete.id, today, r.distance_km, r.sport)
+    # disputa: outros participantes da mesma prova (mesmo dispute_id)
+    rivals = []
+    if r.dispute_id:
+        rows = (
+            db.query(Race, Athlete).join(Athlete, Race.athlete_id == Athlete.id)
+            .filter(Race.dispute_id == r.dispute_id, Race.athlete_id != athlete.id).all()
+        )
+        for rr, a in rows:
+            rivals.append({
+                "name": a.name, "done": bool(rr.done),
+                "result": _fmt_minutes(rr.result_min) if rr.result_min else None,
+                "result_min": rr.result_min,
+            })
     return {"r": r, "days": days, "pred": pred,
-            "result": _fmt_minutes(r.result_min) if r.result_min else None}
+            "result": _fmt_minutes(r.result_min) if r.result_min else None,
+            "rivals": rivals}
 
 
 def _fmt_minutes(minutes: float) -> str:
@@ -1636,6 +1698,9 @@ def races_page(request: Request, db: Session = Depends(get_db)):
     past = [_race_view(db, athlete, r, today) for r in races
             if r.done or r.date < today]
     past.reverse()
+    # amigos aceitos (para convidar pra disputa)
+    fids = [i for i in friend_ids(db, athlete.id) if i != athlete.id]
+    friends = db.query(Athlete).filter(Athlete.id.in_(fids)).order_by(Athlete.name).all() if fids else []
     return templates.TemplateResponse(
         "races.html",
         {
@@ -1643,6 +1708,7 @@ def races_page(request: Request, db: Session = Depends(get_db)):
             "athletes": get_all_athletes(db),
             "upcoming": upcoming, "past": past,
             "today": today.isoformat(), "sports": SPORTS,
+            "friends": friends,
         },
     )
 
@@ -1653,6 +1719,7 @@ def race_create(
     name: str = Form(...), race_date: str = Form(...),
     sport: str = Form("corrida"), distance_m: Optional[str] = Form(None),
     location: Optional[str] = Form(None), link: Optional[str] = Form(None),
+    invite_friend_id: Optional[str] = Form(None),
     db: Session = Depends(get_db),
 ):
     athlete = get_active_athlete(request, db)
@@ -1661,14 +1728,56 @@ def race_create(
     except ValueError:
         return RedirectResponse(url="/provas", status_code=303)
     dist_m = _to_float(distance_m)
-    db.add(Race(
+    # se convidou um amigo (aceito), cria uma disputa
+    dispute_id = None
+    invited = None
+    fid = _to_int(invite_friend_id)
+    if fid and fid in friend_ids(db, athlete.id) and fid != athlete.id:
+        invited = db.query(Athlete).filter(Athlete.id == fid).first()
+        if invited:
+            dispute_id = uuid.uuid4().hex[:32]
+    r = Race(
         athlete_id=athlete.id, name=name.strip()[:120], date=d,
         sport=sport if sport in SPORTS else "corrida",
         distance_km=(dist_m / 1000.0) if dist_m else None,
         location=(location.strip()[:120] or None) if location else None,
         link=(link.strip()[:300] or None) if link else None,
-    ))
+        dispute_id=dispute_id,
+    )
+    db.add(r)
     db.commit()
+    if invited and dispute_id:
+        db.refresh(r)
+        notifications.notify(
+            db, invited.id, "race_invite",
+            f"{athlete.name} te desafiou para uma disputa",
+            f"{r.name} · {d.strftime('%d/%m/%Y')} — topa ver quem vai melhor?",
+            "/provas", ref=f"race:{r.id}", action_id=r.id)
+    return RedirectResponse(url="/provas", status_code=303)
+
+
+@app.post("/provas/disputa/{race_id}/aceitar")
+def race_dispute_accept(request: Request, race_id: int, db: Session = Depends(get_db)):
+    """Aceita a disputa: copia a prova do convidador para a conta do amigo."""
+    me = get_active_athlete(request, db)
+    src = db.query(Race).filter(Race.id == race_id).first()
+    if not src or not src.dispute_id or src.athlete_id == me.id:
+        return RedirectResponse(url="/provas", status_code=303)
+    # já tenho essa disputa?
+    exists = db.query(Race).filter(
+        Race.athlete_id == me.id, Race.dispute_id == src.dispute_id
+    ).first()
+    if not exists:
+        db.add(Race(
+            athlete_id=me.id, name=src.name, date=src.date, sport=src.sport,
+            distance_km=src.distance_km, location=src.location, link=src.link,
+            dispute_id=src.dispute_id,
+        ))
+        db.commit()
+        notifications.notify(
+            db, src.athlete_id, "race_invite",
+            f"{me.name} topou a disputa: {src.name}",
+            "Que vença o melhor!", "/provas", ref=f"raceacc:{src.dispute_id}:{me.id}")
     return RedirectResponse(url="/provas", status_code=303)
 
 

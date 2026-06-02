@@ -30,6 +30,12 @@
             {% if v.pred %}
             <div class="race-pred"><span class="ico-inline" style="color:#fbbf24">{{ bicon('zap') }}</span> No seu ritmo atual: <strong>{{ v.pred.time }}</strong> <span class="muted">({{ v.pred.pace }})</span></div>
             {% endif %}
+            {% if v.rivals %}
+            <div class="race-dispute">
+                <span class="ico-inline" style="color:#a855f7">{{ bicon('flag') }}</span> Disputa com
+                {% for rv in v.rivals %}<strong>{{ rv.name }}</strong>{% if rv.result %} — {{ rv.result }}{% elif rv.done %} — concluiu{% else %} — ainda não correu{% endif %}{% if not loop.last %}, {% endif %}{% endfor %}
+            </div>
+            {% endif %}
             <div class="race-actions">
                 {% if v.r.link %}<a href="{{ v.r.link }}" target="_blank" rel="noopener" class="btn-ghost btn-small">Abrir inscrição</a>{% endif %}
                 <details class="race-done">
@@ -93,6 +99,16 @@
             <span>Link de inscrição (TicketSports, etc.)</span>
             <input type="url" name="link" maxlength="300" placeholder="opcional — cole o link da prova" />
         </label>
+        {% if friends %}
+        <label>
+            <span>Convidar amigo para disputa (opcional)</span>
+            <select name="invite_friend_id">
+                <option value="">— ninguém —</option>
+                {% for fr in friends %}<option value="{{ fr.id }}">{{ fr.name }}</option>{% endfor %}
+            </select>
+        </label>
+        <p class="hint">Convide um amigo pra ver quem vai melhor na mesma prova. Ele recebe uma notificação pra topar a disputa.</p>
+        {% endif %}
         <div class="actions">
             <button type="submit" class="btn-primary">Adicionar prova</button>
         </div>
@@ -105,14 +121,19 @@
     <div class="recent">
         <div class="table-wrap">
             <table class="tbl">
-                <thead><tr><th>Prova</th><th>Data</th><th>Distância</th><th>Seu tempo</th><th></th></tr></thead>
+                <thead><tr><th>Prova</th><th>Data</th><th>Distância</th><th>Seu tempo</th><th>Disputa</th><th></th></tr></thead>
                 <tbody>
                 {% for v in past %}
+                {% set rv = v.rivals[0] if v.rivals else None %}
+                {% set i_win = rv and v.r.result_min and rv.result_min and v.r.result_min < rv.result_min %}
                 <tr>
                     <td><strong>{{ v.r.name }}</strong></td>
                     <td>{{ v.r.date.strftime('%d/%m/%y') }}</td>
                     <td>{{ "%.1f km"|format(v.r.distance_km) if v.r.distance_km else "—" }}</td>
-                    <td>{{ v.result if v.result else "—" }}</td>
+                    <td>{% if i_win %}<span class="ico-inline" style="color:#fbbf24">{{ bicon('trophy') }}</span> {% endif %}{{ v.result if v.result else "—" }}</td>
+                    <td>
+                        {% if rv %}{{ rv.name }}: {{ rv.result if rv.result else ('concluiu' if rv.done else '—') }}{% else %}—{% endif %}
+                    </td>
                     <td class="row-actions">
                         <form method="post" action="/provas/{{ v.r.id }}/delete" onsubmit="return confirm('Excluir?');">
                             <button class="btn-icon" type="submit" title="Excluir">

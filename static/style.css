@@ -2002,6 +2002,24 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 .friend-name { display: flex; align-items: center; gap: 10px; font-weight: 500; }
 .friend-req-actions { display: flex; gap: 8px; align-items: center; }
 .friend-req-actions form { display: inline; }
+.friend-link { color: var(--text); text-decoration: none; }
+.friend-link svg { color: var(--muted); }
+.friend-link:hover { color: var(--accent); }
+.friend-link:hover svg { color: var(--accent); }
+
+/* perfil resumido do amigo */
+.profile-head { display: flex; align-items: center; gap: 14px; }
+
+/* disputa de provas */
+.race-dispute {
+    margin-top: 8px;
+    font-size: 0.88rem;
+    color: var(--text-2);
+    background: rgba(168, 85, 247, 0.10);
+    border: 1px solid rgba(168, 85, 247, 0.25);
+    border-radius: 8px;
+    padding: 7px 10px;
+}
 
 /* ---------- sininho de notificações ---------- */
 .notif-bell {
@@ -2119,22 +2137,22 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 9px;
+    gap: 8px;
     border: none;
     cursor: pointer;
     font: inherit;
-    font-weight: 700;
+    font-weight: 600;
     color: #fff;
-    background: linear-gradient(95deg, #2563eb, #7c3aed 55%, #ec4899);
-    border-radius: 14px;
-    padding: 14px 22px;
-    box-shadow: 0 8px 24px rgba(124, 58, 237, 0.35);
+    background: linear-gradient(95deg, #3b82f6, #6366f1);
+    border-radius: 12px;
+    padding: 11px 18px;
+    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.22);
     transition: filter .15s, transform .1s;
 }
-.btn-share-cta:hover { filter: brightness(1.08); }
+.btn-share-cta:hover { filter: brightness(1.06); }
 .btn-share-cta:active { transform: translateY(1px); }
-.btn-share-cta svg { width: 18px; height: 18px; }
-.period-share-bar .btn-share-cta { width: 100%; max-width: 440px; }
+.btn-share-cta svg { width: 16px; height: 16px; }
+.period-share-bar .btn-share-cta { width: auto; }
 
 /* versão compacta (pill) para a linha de treinos */
 .btn-share-row {
@@ -2144,16 +2162,15 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
     border: none;
     cursor: pointer;
     font: inherit;
-    font-size: 0.8rem;
+    font-size: 0.78rem;
     font-weight: 600;
     color: #fff;
-    background: linear-gradient(95deg, #2563eb, #7c3aed 55%, #ec4899);
+    background: linear-gradient(95deg, #3b82f6, #6366f1);
     border-radius: 8px;
-    padding: 6px 12px;
+    padding: 6px 11px;
     white-space: nowrap;
-    box-shadow: 0 3px 10px rgba(124, 58, 237, 0.3);
 }
-.btn-share-row:hover { filter: brightness(1.08); }
+.btn-share-row:hover { filter: brightness(1.06); }
 .btn-share-row svg { width: 13px; height: 13px; }
 
 /* ---------- Strava ---------- */

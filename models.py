@@ -141,6 +141,7 @@ class Race(Base):
     link = Column(String(300), nullable=True)
     result_min = Column(Float, nullable=True)   # tempo real (min) após concluir
     done = Column(Integer, nullable=False, default=0)
+    dispute_id = Column(String(40), nullable=True, index=True)  # disputa entre amigos
     created_at = Column(DateTime, server_default=func.now())
 
 

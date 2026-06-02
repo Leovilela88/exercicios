@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}{{ p.friend.name }} - MultiFit{% endblock %}
+{% block content %}
+<header class="page-header">
+    <div class="profile-head">
+        {% if p.friend.photo_mime %}
+        <img class="avatar avatar-lg" src="/atletas/{{ p.friend.id }}/foto" alt="" />
+        {% else %}
+        <span class="avatar avatar-lg avatar-placeholder">{{ p.friend.name[:1]|upper }}</span>
+        {% endif %}
+        <div>
+            <h1 class="page-title">{{ p.friend.name }}</h1>
+            <p class="page-sub">Resumo dos treinos do seu amigo.</p>
+        </div>
+    </div>
+    <a href="/ranking" class="btn-ghost btn-small">Ver no ranking</a>
+</header>
+
+<section class="cards" style="margin-bottom: 20px;">
+    <div class="card"><div class="card-label">Treinos</div><div class="card-value">{{ p.total_workouts }}</div></div>
+    <div class="card"><div class="card-label">Distância total</div><div class="card-value">{{ "%.0f"|format(p.total_km) }}<span> km</span></div></div>
+    <div class="card"><div class="card-label">Sequência</div><div class="card-value">{{ p.streak }}<span> dias</span></div></div>
+    <div class="card"><div class="card-label">Troféus</div><div class="card-value">{{ p.trophies }}</div></div>
+</section>
+
+<section class="panel-section">
+    <div class="section-head"><h2>Este mês</h2></div>
+    <div class="cards">
+        <div class="card"><div class="card-label">Distância</div><div class="card-value">{{ "%.1f"|format(p.month_km) }}<span> km</span></div></div>
+        <div class="card"><div class="card-label">Treinos</div><div class="card-value">{{ p.month_count }}</div></div>
+    </div>
+</section>
+
+{% if p.per_sport or p.gym_count %}
+<section class="panel-section">
+    <div class="section-head"><h2>Por esporte</h2></div>
+    <div class="friend-list">
+        {% for s in p.per_sport %}
+        <div class="friend-row">
+            <span class="friend-name">{{ s.label }}</span>
+            <span>{{ "%.1f"|format(s.km) }} km</span>
+        </div>
+        {% endfor %}
+        {% if p.gym_count %}
+        <div class="friend-row">
+            <span class="friend-name">Musculação</span>
+            <span>{{ p.gym_count }} treino{{ 's' if p.gym_count != 1 else '' }}</span>
+        </div>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+<p class="hint" style="margin-top: 16px;">Você vê só um resumo — os detalhes dos treinos de cada um são privados.</p>
+{% endblock %}
