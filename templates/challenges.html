@@ -44,6 +44,42 @@
     <a href="/conquistas" class="btn-ghost btn-small">{{ bicon('trophy') }} Troféus</a>
 </header>
 
+{% if disputes %}
+<section class="panel-section">
+    <div class="section-head">
+        <h2>Disputas com amigos</h2>
+        <a class="section-link" href="/provas">ir para provas →</a>
+    </div>
+    <div class="challenge-grid">
+        {% for d in disputes %}
+        {% set rv = d.rivals[0] if d.rivals else None %}
+        {% set i_win = rv and d.r.result_min and rv.result_min and d.r.result_min < rv.result_min %}
+        {% set rival_win = rv and d.r.result_min and rv.result_min and rv.result_min < d.r.result_min %}
+        <article class="challenge-card {% if d.r.done and rv and rv.done %}is-done{% endif %}">
+            <div class="challenge-head">
+                <span class="challenge-icon" style="color:#a855f7; background:#a855f71f;">{{ bicon('flag') }}</span>
+                <div class="challenge-title">
+                    <strong>{{ d.r.name }}</strong>
+                    <span class="challenge-sub">{{ d.r.date.strftime('%d/%m/%Y') }}{% if not d.r.done and d.days >= 0 %} · em {{ d.days }} dia{{ 's' if d.days != 1 else '' }}{% endif %}</span>
+                </div>
+            </div>
+            <div class="dispute-vs">
+                <div class="dispute-side {% if i_win %}dispute-win{% endif %}">
+                    <span class="dispute-who">Você {% if i_win %}{{ bicon('trophy') }}{% endif %}</span>
+                    <span class="dispute-res">{{ d.result if d.result else ('concluiu' if d.r.done else '—') }}</span>
+                </div>
+                <span class="dispute-x">×</span>
+                <div class="dispute-side {% if rival_win %}dispute-win{% endif %}">
+                    <span class="dispute-who">{{ rv.name if rv else '—' }} {% if rival_win %}{{ bicon('trophy') }}{% endif %}</span>
+                    <span class="dispute-res">{% if rv %}{{ rv.result if rv.result else ('concluiu' if rv.done else '—') }}{% else %}aguardando{% endif %}</span>
+                </div>
+            </div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
+{% endif %}
+
 <section class="panel-section">
     <div class="section-head"><h2>Da semana</h2></div>
     <div class="challenge-grid">

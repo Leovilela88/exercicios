@@ -2145,6 +2145,22 @@ a.btn-icon:hover { color: var(--accent); background: rgba(59, 130, 246, 0.10); }
 .challenge-action { margin-top: auto; }
 .challenge-action button { width: 100%; justify-content: center; }
 
+/* disputa (versus) nos desafios */
+.dispute-vs { display: flex; align-items: stretch; gap: 8px; }
+.dispute-side {
+    flex: 1;
+    display: flex; flex-direction: column; gap: 3px;
+    background: var(--panel-2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 10px 12px;
+}
+.dispute-side.dispute-win { border-color: rgba(251,191,36,0.5); background: rgba(251,191,36,0.08); }
+.dispute-who { font-size: 0.82rem; color: var(--muted); display: flex; align-items: center; gap: 4px; }
+.dispute-who svg { width: 13px; height: 13px; color: #fbbf24; }
+.dispute-res { font-size: 1.05rem; font-weight: 700; }
+.dispute-x { align-self: center; color: var(--muted); font-weight: 700; }
+
 .period-share-bar { display: flex; justify-content: center; margin: 0 0 18px; }
 .period-share-bar .btn-small { justify-content: center; }
 

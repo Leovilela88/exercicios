@@ -1863,6 +1863,13 @@ def challenges_page(request: Request, db: Session = Depends(get_db)):
     joins = db.query(ChallengeJoin).filter(ChallengeJoin.athlete_id == athlete.id).all()
     joined = {(j.code, j.period_key) for j in joins}
     data = challenges.build(db, athlete.id, today, joined)
+    # disputas de prova com amigos (acompanhar aqui também)
+    dispute_races = (
+        db.query(Race).filter(
+            Race.athlete_id == athlete.id, Race.dispute_id.isnot(None)
+        ).order_by(Race.date).all()
+    )
+    disputes = [_race_view(db, athlete, r, today) for r in dispute_races]
     return templates.TemplateResponse(
         "challenges.html",
         {
@@ -1870,6 +1877,7 @@ def challenges_page(request: Request, db: Session = Depends(get_db)):
             "athlete": athlete,
             "weekly": data["weekly"],
             "monthly": data["monthly"],
+            "disputes": disputes,
         },
     )
 
