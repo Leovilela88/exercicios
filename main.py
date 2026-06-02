@@ -617,6 +617,7 @@ def friend_profile(request: Request, aid: int, db: Session = Depends(get_db)):
         if km > 0:
             per_sport.append({"sport": sp, "label": sport_label(sp), "km": km})
     gym = stats._aggregate(db, aid, earliest, today, sport="musculacao")["count"]
+    ev = achievements.evaluate(db, aid)
     summary = {
         "friend": friend,
         "total_workouts": allt["count"],
@@ -626,11 +627,13 @@ def friend_profile(request: Request, aid: int, db: Session = Depends(get_db)):
         "month_km": month["km"], "month_count": month["count"],
         "per_sport": per_sport,
         "gym_count": gym,
-        "trophies": achievements.evaluate(db, aid)["count"],
+        "trophies": ev["count"],
     }
     return templates.TemplateResponse(
         "friend_profile.html",
-        {"request": request, "athlete": me, "p": summary},
+        {"request": request, "athlete": me, "p": summary,
+         "records": stats.personal_records(db, aid),
+         "badges_unlocked": ev["unlocked"]},
     )
 
 

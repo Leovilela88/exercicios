@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% from "_macros.html" import bicon %}
 {% block title %}{{ p.friend.name }} - MultiFit{% endblock %}
 {% block content %}
 <header class="page-header">
@@ -19,6 +20,7 @@
 <section class="cards" style="margin-bottom: 20px;">
     <div class="card"><div class="card-label">Treinos</div><div class="card-value">{{ p.total_workouts }}</div></div>
     <div class="card"><div class="card-label">Distância total</div><div class="card-value">{{ "%.0f"|format(p.total_km) }}<span> km</span></div></div>
+    <div class="card"><div class="card-label">Calorias</div><div class="card-value">{{ "{:,.0f}".format(p.total_cal).replace(',', '.') }}<span> kcal</span></div></div>
     <div class="card"><div class="card-label">Sequência</div><div class="card-value">{{ p.streak }}<span> dias</span></div></div>
     <div class="card"><div class="card-label">Troféus</div><div class="card-value">{{ p.trophies }}</div></div>
 </section>
@@ -47,6 +49,53 @@
             <span>{{ p.gym_count }} treino{{ 's' if p.gym_count != 1 else '' }}</span>
         </div>
         {% endif %}
+    </div>
+</section>
+{% endif %}
+
+<section class="panel-section">
+    <div class="section-head"><h2>Recordes</h2></div>
+    <div class="records-grid">
+        <div class="record-card">
+            <div class="record-label"><span class="record-ico" style="color:#60a5fa">{{ bicon('route') }}</span> Maior distância</div>
+            {% if records.longest_dist and records.longest_dist.distance_km %}
+            <div class="record-value">{{ "%.2f"|format(records.longest_dist.distance_km) }} km</div>
+            <div class="record-sub">{{ sport_label(records.longest_dist.sport) }} · {{ records.longest_dist.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label"><span class="record-ico" style="color:#c084fc">{{ bicon('clock') }}</span> Treino mais longo</div>
+            {% if records.longest_dur and records.longest_dur.duration_min %}
+            <div class="record-value">{{ "%.0f"|format(records.longest_dur.duration_min) }} min</div>
+            <div class="record-sub">{{ sport_label(records.longest_dur.sport) }} · {{ records.longest_dur.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label"><span class="record-ico" style="color:#fb923c">{{ bicon('zap') }}</span> Melhor pace corrida</div>
+            {% if records.best_pace.corrida %}
+            <div class="record-value">{{ records.best_pace.corrida.pace }}</div>
+            <div class="record-sub">{{ records.best_pace.corrida.date.strftime('%d/%m/%y') }}</div>
+            {% else %}<div class="record-value">—</div>{% endif %}
+        </div>
+        <div class="record-card">
+            <div class="record-label"><span class="record-ico" style="color:#f87171">{{ bicon('flame') }}</span> Maior sequência</div>
+            <div class="record-value">{{ records.max_streak }} <span class="record-unit">{{ "dia" if records.max_streak == 1 else "dias" }}</span></div>
+            <div class="record-sub">dias consecutivos</div>
+        </div>
+    </div>
+</section>
+
+{% if badges_unlocked %}
+<section class="panel-section">
+    <div class="section-head"><h2>Conquistas ({{ badges_unlocked|length }})</h2></div>
+    <div class="badge-grid">
+        {% for item in badges_unlocked %}
+        <article class="badge-card badge-unlocked" title="{{ item.badge.desc }}">
+            <div class="badge-icon" style="color: {{ item.badge.color }}; background: {{ item.badge.color }}1f;">{{ bicon(item.badge.icon) }}</div>
+            <div class="badge-title">{{ item.badge.title }}</div>
+            <div class="badge-desc">{{ item.badge.desc }}</div>
+        </article>
+        {% endfor %}
     </div>
 </section>
 {% endif %}
