@@ -2,9 +2,10 @@
     --bg: #050810;
     --bg-grad: radial-gradient(1200px 600px at 80% -10%, rgba(59,130,246,0.06), transparent 60%),
                radial-gradient(900px 500px at -10% 0%, rgba(168,85,247,0.05), transparent 60%);
-    --panel: #0a0f1a;
-    --panel-2: #11172a;
-    --panel-hover: #161e36;
+    /* superfícies com 95% de opacidade — deixa o fundo aparecer sutilmente */
+    --panel: rgba(10, 15, 26, 0.95);
+    --panel-2: rgba(17, 23, 42, 0.95);
+    --panel-hover: rgba(22, 30, 54, 0.95);
     --text: #f1f5f9;
     --text-2: #cbd5e1;
     --muted: #94a3b8;
@@ -19,10 +20,11 @@
 
 * { box-sizing: border-box; }
 
-html, body { height: 100%; }
+html { height: 100%; }
 
 body {
     margin: 0;
+    position: relative;   /* ancora a camada de fundo */
     font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     background-color: var(--bg);
     color: var(--text);
@@ -32,17 +34,15 @@ body {
     font-feature-settings: 'cv02', 'cv11';
 }
 
-/* Camada de fundo (constelação): posicionada no topo do documento e rola
+/* Camada de fundo (constelação): cobre toda a altura do documento e rola
    junto com o conteúdo (position: absolute, não fixed). */
 #bg-image {
     position: absolute;
-    top: 0; left: 0;
-    width: 100%;
-    aspect-ratio: 1536 / 2585;
+    top: 0; left: 0; right: 0; bottom: 0;
     background-image: url('/static/bg_2.png');
-    background-size: cover;
+    background-size: 100% auto;
     background-position: top center;
-    background-repeat: no-repeat;
+    background-repeat: repeat-y;
     z-index: -1;
     pointer-events: none;
 }
