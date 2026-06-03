@@ -70,12 +70,7 @@
                 <td class="col-check"><input type="checkbox" class="row-check" value="{{ w.id }}" aria-label="Selecionar treino" /></td>
                 <td>{{ w.date.strftime('%d/%m/%y') }}</td>
                 <td>
-                    {% if w.sport == 'corrida' %}<span class="tag tag-run">Corrida</span>
-                    {% elif w.sport == 'natacao' %}<span class="tag tag-swim">Natação</span>
-                    {% elif w.sport == 'musculacao' %}<span class="tag tag-gym">Musculação</span>
-                    {% elif w.sport == 'trilha' %}<span class="tag tag-trail">Trilha</span>
-                    {% elif w.sport == 'bike' %}<span class="tag tag-bike">Bike</span>
-                    {% else %}<span class="tag tag-other">Outro</span>{% endif %}
+                    <span class="tag" style="color: {{ sport_color(w.sport) }}; background: {{ sport_color(w.sport) }}1f;">{{ sport_label(w.sport) }}</span>
                     {% if w.sport == 'musculacao' and ex_counts.get(w.id) %}
                     <a href="/treino/{{ w.id }}" class="ex-count" title="Ver exercícios">{{ ex_counts[w.id] }} exerc.</a>
                     {% endif %}

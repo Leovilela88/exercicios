@@ -4,22 +4,45 @@ from typing import Optional
 # Rótulo + classe CSS + emoji por esporte (fonte única para os templates)
 SPORT_LABELS = {
     "corrida": ("Corrida", "tag-run", "🏃"),
+    "trilha": ("Trilha", "tag-trail", "🥾"),
+    "caminhada": ("Caminhada", "tag-walk", "🚶"),
+    "bike": ("Bike", "tag-bike", "🚴"),
     "natacao": ("Natação", "tag-swim", "🏊"),
     "musculacao": ("Musculação", "tag-gym", "🏋️"),
-    "trilha": ("Trilha", "tag-trail", "🥾"),
-    "bike": ("Bike", "tag-bike", "🚴"),
+    "funcional": ("Funcional", "tag-func", "🤸"),
+    "yoga": ("Yoga", "tag-yoga", "🧘"),
+    "pilates": ("Pilates", "tag-pilates", "🧘"),
+    "remo": ("Remo", "tag-row", "🚣"),
     "outro": ("Outro", "tag-other", "💪"),
 }
 
 # Cor de acento por esporte (espelha as classes .tag-* do style.css)
 SPORT_COLORS = {
     "corrida": "#60a5fa",
+    "trilha": "#a3e635",
+    "caminhada": "#34d399",
+    "bike": "#facc15",
     "natacao": "#22d3ee",
     "musculacao": "#f87171",
-    "trilha": "#a3e635",
-    "bike": "#facc15",
-    "outro": "#c084fc",
+    "funcional": "#fb923c",
+    "yoga": "#c084fc",
+    "pilates": "#f472b6",
+    "remo": "#38bdf8",
+    "outro": "#94a3b8",
 }
+
+# ordem de exibição (cards/gráficos)
+SPORT_ORDER = list(SPORT_LABELS.keys())
+# esportes medidos por distância (mostram km); os demais mostram sessões/minutos
+DISTANCE_SPORTS = {"corrida", "trilha", "caminhada", "bike", "natacao", "remo"}
+
+
+def sport_color(sport: str) -> str:
+    return SPORT_COLORS.get(sport, SPORT_COLORS["outro"])
+
+
+def is_distance_sport(sport: str) -> bool:
+    return sport in DISTANCE_SPORTS
 
 
 def sport_label(sport: str) -> str:

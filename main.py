@@ -25,7 +25,8 @@ except ImportError:  # Pillow é opcional — sem ele, fotos são salvas sem res
 
 from calories import estimate_calories
 from db import Base, SessionLocal, engine, get_db
-from metrics import bmi, bmi_category, pace, sport_label, workout_share
+from metrics import (bmi, bmi_category, pace, sport_label, sport_color,
+                     is_distance_sport, workout_share, SPORT_ORDER, DISTANCE_SPORTS)
 from models import (Athlete, ChallengeJoin, ExerciseEntry, Friendship, Goal,
                     Notification, Race, Routine, RoutineItem, Settings,
                     WeightLog, Workout)
@@ -37,7 +38,7 @@ import notifications
 import stats
 import strava_api
 
-SPORTS = ("corrida", "natacao", "musculacao", "trilha", "bike", "outro")
+SPORTS = tuple(SPORT_ORDER)  # todos os esportes válidos (corrida, trilha, ... outro)
 
 # Fuso do Brasil — o servidor roda em UTC, então datas/horas seguem São Paulo.
 BR_TZ = ZoneInfo("America/Sao_Paulo")
@@ -237,6 +238,8 @@ app.add_middleware(
 # Helpers disponíveis nos templates Jinja
 templates.env.globals["pace"] = pace
 templates.env.globals["sport_label"] = sport_label
+templates.env.globals["sport_color"] = sport_color
+templates.env.globals["is_distance_sport"] = is_distance_sport
 templates.env.globals["workout_share"] = workout_share
 templates.env.globals["bmi"] = bmi
 templates.env.globals["bmi_category"] = bmi_category
@@ -779,23 +782,23 @@ def dashboard(
         Workout.date <= today,
     )
 
+    # Agregados por esporte no período — só os que têm registro entram (cards/gráficos)
+    _order = lambda s: SPORT_ORDER.index(s) if s in SPORT_ORDER else 999
+    sport_rows = period_filter(db.query(
+        Workout.sport, func.count(Workout.id),
+        func.coalesce(func.sum(Workout.distance_km), 0.0),
+        func.coalesce(func.sum(Workout.duration_min), 0.0),
+    )).group_by(Workout.sport).all()
+    sport_agg = {sp: {"count": int(c), "km": float(km or 0), "min": float(mn or 0)}
+                 for sp, c, km, mn in sport_rows if c}
+    present_sports = sorted(sport_agg.keys(), key=_order)
+    sport_cards = [{
+        "sport": s, "label": sport_label(s), "color": sport_color(s),
+        "is_distance": is_distance_sport(s),
+        "km": sport_agg[s]["km"], "count": sport_agg[s]["count"], "min": sport_agg[s]["min"],
+    } for s in present_sports]
+
     totals = {
-        "corrida_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
-        .filter(Workout.sport == "corrida").scalar() or 0.0,
-        "natacao_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
-        .filter(Workout.sport == "natacao").scalar() or 0.0,
-        "musculacao_min": period_filter(db.query(func.coalesce(func.sum(Workout.duration_min), 0.0)))
-        .filter(Workout.sport == "musculacao").scalar() or 0.0,
-        "musculacao_sessoes": period_filter(db.query(func.count(Workout.id)))
-        .filter(Workout.sport == "musculacao").scalar() or 0,
-        "trilha_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
-        .filter(Workout.sport == "trilha").scalar() or 0.0,
-        "trilha_sessoes": period_filter(db.query(func.count(Workout.id)))
-        .filter(Workout.sport == "trilha").scalar() or 0,
-        "bike_km": period_filter(db.query(func.coalesce(func.sum(Workout.distance_km), 0.0)))
-        .filter(Workout.sport == "bike").scalar() or 0.0,
-        "bike_sessoes": period_filter(db.query(func.count(Workout.id)))
-        .filter(Workout.sport == "bike").scalar() or 0,
         "calorias": period_filter(db.query(func.coalesce(func.sum(Workout.calories), 0.0))).scalar() or 0.0,
         "dias_ativos": period_filter(db.query(func.count(func.distinct(Workout.date)))).scalar() or 0,
         "total_treinos": period_filter(db.query(func.count(Workout.id))).scalar() or 0,
@@ -858,21 +861,6 @@ def dashboard(
             cal_series.append(cal_sum)
             active_series.append(active_days)
 
-    evo_rows = aq(
-        db.query(Workout.date, Workout.sport, Workout.distance_km, Workout.duration_min)
-    ).filter(
-        Workout.date >= start, Workout.date <= today,
-        Workout.sport.in_(["corrida", "natacao", "trilha", "bike", "musculacao"]),
-    ).all()
-    evo_labels = labels
-    corrida_evo = [0.0] * len(labels)
-    natacao_evo = [0.0] * len(labels)
-    trilha_evo = [0.0] * len(labels)
-    bike_evo = [0.0] * len(labels)
-    musculacao_evo = [0.0] * len(labels)  # em minutos
-    km_series = {"corrida": corrida_evo, "natacao": natacao_evo,
-                 "trilha": trilha_evo, "bike": bike_evo}
-
     def _bucket_idx(d: date) -> int:
         if bucket == "day":
             return (d - start).days
@@ -882,23 +870,38 @@ def dashboard(
         # month
         return (d.year - start.year) * 12 + (d.month - start.month)
 
+    # Série do gráfico de evolução: uma por esporte presente (km p/ distância,
+    # minutos p/ os demais). Só entra quem tem registro no período.
+    evo_labels = labels
+    series_map = {s: [0.0] * len(labels) for s in present_sports}
+    evo_rows = aq(
+        db.query(Workout.date, Workout.sport, Workout.distance_km, Workout.duration_min)
+    ).filter(Workout.date >= start, Workout.date <= today).all()
     for d, sport, km, dur in evo_rows:
+        if sport not in series_map:
+            continue
         idx = _bucket_idx(d)
         if not (0 <= idx < len(labels)):
             continue
-        if sport == "musculacao":
-            if dur:
-                musculacao_evo[idx] += float(dur)
-        elif km and sport in km_series:
-            km_series[sport][idx] += float(km)
+        if is_distance_sport(sport):
+            if km:
+                series_map[sport][idx] += float(km)
+        elif dur:
+            series_map[sport][idx] += float(dur)
 
-    breakdown_rows = aq(
-        db.query(Workout.sport, func.count(Workout.id))
-    ).filter(Workout.date >= start, Workout.date <= today).group_by(Workout.sport).all()
-    breakdown = {"corrida": 0, "natacao": 0, "musculacao": 0, "trilha": 0, "bike": 0, "outro": 0}
-    for sport, count in breakdown_rows:
-        if sport in breakdown:
-            breakdown[sport] = int(count)
+    sport_series = [{
+        "label": sport_label(s) + (" (km)" if is_distance_sport(s) else " (min)"),
+        "color": sport_color(s),
+        "axis": "y" if is_distance_sport(s) else "y1",
+        "data": [round(v, 2) for v in series_map[s]],
+    } for s in present_sports]
+
+    # Distribuição (pizza): só esportes presentes
+    pie = {
+        "labels": [c["label"] for c in sport_cards],
+        "colors": [c["color"] for c in sport_cards],
+        "data": [c["count"] for c in sport_cards],
+    }
 
     recent = (
         aq(db.query(Workout)).order_by(Workout.date.desc(), Workout.id.desc()).limit(10).all()
@@ -951,6 +954,9 @@ def dashboard(
             "athlete": athlete,
             "athletes": get_all_athletes(db),
             "totals": totals,
+            "sport_cards": sport_cards,
+            "sport_series": sport_series,
+            "pie": pie,
             "share_period": share_period,
             "streak": streak,
             "has_any_workout": has_any_workout,
@@ -971,13 +977,7 @@ def dashboard(
             "cal_series": cal_series,
             "active_series": active_series,
             "evo_labels": evo_labels,
-            "corrida_evo": corrida_evo,
-            "natacao_evo": natacao_evo,
-            "trilha_evo": trilha_evo,
-            "bike_evo": bike_evo,
-            "musculacao_evo": musculacao_evo,
             "bucket": bucket,
-            "breakdown": breakdown,
             "recent": recent,
             "today": today.isoformat(),
             "range_options": RANGE_OPTIONS,
@@ -1571,6 +1571,10 @@ def workouts_history(
         .filter(ExerciseEntry.workout_id.in_(ids))
         .group_by(ExerciseEntry.workout_id).all()
     ) if ids else {}
+    # filtros: só os esportes que o atleta realmente tem
+    _have = {s for (s,) in db.query(Workout.sport).filter(
+        Workout.athlete_id == athlete.id).distinct().all()}
+    present_sports = [s for s in SPORT_ORDER if s in _have]
     return templates.TemplateResponse(
         "workouts.html",
         {
@@ -1582,7 +1586,7 @@ def workouts_history(
             "page": page,
             "pages": pages,
             "sport": sport if sport in SPORTS else None,
-            "sports": SPORTS,
+            "sports": present_sports,
             "cleaned_reclass": cleaned_reclass,
             "cleaned_removed": cleaned_removed,
             "ex_counts": ex_counts,

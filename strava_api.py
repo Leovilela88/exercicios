@@ -92,15 +92,23 @@ def _map_sport(act: dict) -> str:
     if "trail" in t or t == "hike":
         return "trilha"
     if "walk" in t:
-        return "trilha"
+        return "caminhada"
     if "run" in t:
         return "corrida"
     if "swim" in t:
         return "natacao"
-    if "ride" in t or "bike" in t or "cycl" in t:
+    if "ride" in t or "bike" in t or "cycl" in t or "handcycle" in t:
         return "bike"
-    if any(k in t for k in ("weight", "workout", "crossfit", "strength")):
+    if "pilates" in t:
+        return "pilates"
+    if "yoga" in t:
+        return "yoga"
+    if any(k in t for k in ("weight", "strength")):
         return "musculacao"
+    if any(k in t for k in ("workout", "crossfit", "hiit", "functional", "elliptical", "stairstepper")):
+        return "funcional"
+    if any(k in t for k in ("row", "kayak", "canoe", "standuppaddl")):
+        return "remo"
     return "outro"
 
 
