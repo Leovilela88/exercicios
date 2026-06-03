@@ -11,29 +11,15 @@ from datetime import date, datetime, timezone
 from typing import Optional
 
 from strava_import import ParsedWorkout
-
-# activityType (Garmin) -> nosso esporte. Casamos por substring (lowercase).
-_SPORT_RULES = [
-    ("swim", "natacao"),
-    ("run", "corrida"),
-    ("treadmill", "corrida"),
-    ("cycl", "bike"),
-    ("bik", "bike"),
-    ("ride", "bike"),
-    ("hik", "trilha"),
-    ("walk", "trilha"),
-    ("strength", "musculacao"),
-    ("weight", "musculacao"),
-    ("gym", "musculacao"),
-]
+from strava_import import map_sport as _map_strava_sport
 
 
 def map_sport(activity_type: str) -> str:
-    t = (activity_type or "").lower()
-    for needle, sport in _SPORT_RULES:
-        if needle in t:
-            return sport
-    return "outro"
+    """Garmin usa nomes parecidos com o Strava (running, lap_swimming,
+    strength_training, hiking, walking, yoga, pilates, rowing...). Reaproveita
+    o mapeamento único de strava_import — sem "outro": o que não encaixa em
+    categoria própria vira "funcional"."""
+    return _map_strava_sport(activity_type)
 
 
 def _num(v) -> Optional[float]:

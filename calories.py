@@ -71,13 +71,13 @@ def estimate_calories(
     if not distance_km and not duration_min:
         return None
 
-    # Musculação e outros precisam de duração; distância sozinha não tem sentido.
-    if sport in ("musculacao", "outro") and not duration_min:
+    # Esportes sem distância precisam de duração; distância sozinha não faz sentido.
+    if sport in ("musculacao", "funcional", "yoga", "pilates", "outro") and not duration_min:
         return None
 
     # Inferir duração quando só temos distância (estima ritmo padrão por esporte)
     default_speed = {"corrida": 10.0, "natacao": 2.5, "trilha": 4.5,
-                     "bike": 20.0}.get(sport, 5.0)
+                     "caminhada": 5.0, "bike": 20.0, "remo": 8.0}.get(sport, 5.0)
 
     if duration_min and duration_min > 0:
         hours = duration_min / 60.0
@@ -93,13 +93,21 @@ def estimate_calories(
         met = _running_met(speed_kmh)
     elif sport == "natacao":
         met = _swim_met(speed_kmh)
-    elif sport == "trilha":
+    elif sport in ("trilha", "caminhada"):
         met = _trail_met(speed_kmh)
     elif sport == "bike":
         met = _bike_met(speed_kmh)
+    elif sport == "remo":
+        met = 7.0   # remo / remada moderado-vigoroso
     elif sport == "musculacao":
-        met = 5.0  # treino resistido vigoroso
+        met = 5.0   # treino resistido vigoroso
+    elif sport == "funcional":
+        met = 6.0   # circuito / funcional / HIIT moderado
+    elif sport == "pilates":
+        met = 3.0
+    elif sport == "yoga":
+        met = 2.5
     else:
-        met = 4.5  # exercício geral moderado
+        met = 4.5   # exercício geral moderado
 
     return round(met * weight_kg * hours, 0)

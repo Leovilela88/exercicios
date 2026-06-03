@@ -14,8 +14,8 @@
     <strong>{{ strava_result.inserted }} treino{{ 's' if strava_result.inserted != 1 else '' }} importado{{ 's' if strava_result.inserted != 1 else '' }}</strong>
     do Strava · {{ strava_result.total }} atividade{{ 's' if strava_result.total != 1 else '' }} lida{{ 's' if strava_result.total != 1 else '' }}.
     <ul class="result-list">
-        {% for sp, lbl in [('corrida','Corrida'),('natacao','Natação'),('musculacao','Musculação'),('trilha','Trilha'),('bike','Bike'),('outro','Outro')] %}
-        {% if strava_result.by_sport.get(sp) %}<li>{{ lbl }}: {{ strava_result.by_sport[sp] }}</li>{% endif %}
+        {% for sp, n in strava_result.by_sport.items() %}
+        {% if n %}<li>{{ sport_label(sp) }}: {{ n }}</li>{% endif %}
         {% endfor %}
         {% if strava_result.skipped_dup %}<li class="muted">{{ strava_result.skipped_dup }} duplicado{{ 's' if strava_result.skipped_dup != 1 else '' }} ignorado{{ 's' if strava_result.skipped_dup != 1 else '' }}</li>{% endif %}
     </ul>

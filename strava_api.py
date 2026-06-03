@@ -14,7 +14,7 @@ from typing import Optional
 
 from dateutil import parser as dtparser
 
-from strava_import import ParsedWorkout
+from strava_import import ParsedWorkout, map_sport
 
 AUTHORIZE_URL = "https://www.strava.com/oauth/authorize"
 TOKEN_URL = "https://www.strava.com/oauth/token"
@@ -86,30 +86,9 @@ def refresh_access_token(refresh_token: str) -> dict:
 
 # ----------------------------------------------------------------- atividades
 
-# Strava sport_type / type -> nosso esporte
+# Strava sport_type / type -> nosso esporte (usa o mapeamento único de strava_import)
 def _map_sport(act: dict) -> str:
-    t = (act.get("sport_type") or act.get("type") or "").lower()
-    if "trail" in t or t == "hike":
-        return "trilha"
-    if "walk" in t:
-        return "caminhada"
-    if "run" in t:
-        return "corrida"
-    if "swim" in t:
-        return "natacao"
-    if "ride" in t or "bike" in t or "cycl" in t or "handcycle" in t:
-        return "bike"
-    if "pilates" in t:
-        return "pilates"
-    if "yoga" in t:
-        return "yoga"
-    if any(k in t for k in ("weight", "strength")):
-        return "musculacao"
-    if any(k in t for k in ("workout", "crossfit", "hiit", "functional", "elliptical", "stairstepper")):
-        return "funcional"
-    if any(k in t for k in ("row", "kayak", "canoe", "standuppaddl")):
-        return "remo"
-    return "outro"
+    return map_sport(act.get("sport_type") or act.get("type") or "")
 
 
 def _extra_metrics(act: dict) -> Optional[dict]:

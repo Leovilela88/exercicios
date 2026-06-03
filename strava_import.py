@@ -49,48 +49,73 @@ COL_ALIASES = {
     "name": ["activityname", "nomedaatividade", "nomedoatividade", "nome"],
 }
 
-# Strava activity type -> nosso sport
+# Strava activity type -> nosso sport. Esta é a ÚNICA fonte de mapeamento,
+# usada tanto pelo import via CSV quanto pelo import via API (strava_api.py),
+# pra garantir que o mesmo treino sempre caia no mesmo esporte.
 SPORT_MAP = {
-    # corrida
-    "run": "corrida",
-    "trailrun": "corrida",
-    "virtualrun": "corrida",
-    "corrida": "corrida",
-    "corridadetrilha": "corrida",
-    "corridavirtual": "corrida",
-    # natação
-    "swim": "natacao",
-    "natacao": "natacao",
-    # musculação / treinamento de força
-    "weighttraining": "musculacao",
-    "workout": "musculacao",
-    "crossfit": "musculacao",
-    "musculacao": "musculacao",
-    "treinamentodeforca": "musculacao",
-    "treinodeforca": "musculacao",
+    # corrida (Run, Virtual Run)
+    "run": "corrida", "virtualrun": "corrida",
+    "corrida": "corrida", "corridavirtual": "corrida",
+    # trilha (Trail Run, Hike, Snowshoe, Trekking)
+    "trailrun": "trilha", "trail": "trilha", "hike": "trilha",
+    "snowshoe": "trilha", "trilha": "trilha", "corridadetrilha": "trilha",
+    "trekking": "trilha", "caminhadaemtrilha": "trilha",
+    # caminhada (Walk)
+    "walk": "caminhada", "caminhada": "caminhada", "caminhadaaoarlivre": "caminhada",
+    # natação (Swim)
+    "swim": "natacao", "natacao": "natacao",
+    # bike / ciclismo (Ride, MTB, Gravel, E-Bike, Virtual, Handcycle, Velomobile)
+    "ride": "bike", "virtualride": "bike", "ebikeride": "bike",
+    "emountainbikeride": "bike", "mountainbikeride": "bike", "gravelride": "bike",
+    "velomobile": "bike", "handcycle": "bike", "bike": "bike", "ebike": "bike",
+    "pedal": "bike", "pedalada": "bike", "ciclismo": "bike",
+    # musculação / força (Weight Training)
+    "weighttraining": "musculacao", "musculacao": "musculacao",
+    "treinamentodeforca": "musculacao", "treinodeforca": "musculacao",
     "treinodepeso": "musculacao",
-    # trilha / caminhada (Hike, Walk, Trekking)
-    "hike": "trilha",
-    "walk": "trilha",
-    "trilha": "trilha",
-    "caminhada": "trilha",
-    "trekking": "trilha",
-    "caminhadaaoarlivre": "trilha",
-    # bike / ciclismo (Ride, Mountain Bike, E-Bike, Virtual)
-    "ride": "bike",
-    "mountainbikeride": "bike",
-    "gravelride": "bike",
-    "ebikeride": "bike",
-    "virtualride": "bike",
-    "bike": "bike",
-    "pedal": "bike",
-    "pedalada": "bike",
-    "ciclismo": "bike",
+    # yoga / pilates
+    "yoga": "yoga", "pilates": "pilates",
+    # remo / remada (Rowing, Kayak, Canoe, Stand Up Paddle)
+    "rowing": "remo", "virtualrow": "remo", "kayaking": "remo",
+    "canoeing": "remo", "standuppaddling": "remo", "remo": "remo",
+    "kayak": "remo", "canoagem": "remo", "caiaque": "remo", "remada": "remo",
+    # funcional (Workout, Crossfit, HIIT, Elíptico, Escada, Escalada, Treino funcional)
+    "workout": "funcional", "crossfit": "funcional", "hiit": "funcional",
+    "highintensityintervaltraining": "funcional", "elliptical": "funcional",
+    "stairstepper": "funcional", "rockclimbing": "funcional",
+    "functional": "funcional", "funcional": "funcional", "treinofuncional": "funcional",
 }
 
 
 def map_sport(strava_type: str) -> str:
-    return SPORT_MAP.get(_norm(strava_type), "outro")
+    """Mapeia o tipo do Strava para um dos nossos esportes. A categoria "outro"
+    foi descontinuada: tudo que não tem categoria própria (futebol, tênis, golfe,
+    esqui, surf, etc.) cai em "funcional" como atividade física genérica."""
+    n = _norm(strava_type)
+    if n in SPORT_MAP:
+        return SPORT_MAP[n]
+    # Heurística por substring para variações não listadas (a ordem importa:
+    # "trail" antes de "run" porque "trailrun" contém "run").
+    if "trail" in n or "hike" in n or "trilha" in n:
+        return "trilha"
+    if "walk" in n or "caminh" in n:
+        return "caminhada"
+    if "run" in n or "corrid" in n:
+        return "corrida"
+    if "swim" in n or "natac" in n:
+        return "natacao"
+    if any(k in n for k in ("ride", "bike", "cycl", "pedal", "ciclis")):
+        return "bike"
+    if "pilates" in n:
+        return "pilates"
+    if "yoga" in n:
+        return "yoga"
+    if any(k in n for k in ("weight", "strength", "muscul", "forca", "peso")):
+        return "musculacao"
+    if any(k in n for k in ("row", "kayak", "canoe", "paddl", "remo", "caiaque", "remada")):
+        return "remo"
+    # Qualquer outro esporte vira "funcional" (genérico) — nunca "outro".
+    return "funcional"
 
 
 def _parse_date(value: str) -> Optional[date]:

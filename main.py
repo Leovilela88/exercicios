@@ -995,7 +995,7 @@ def _parse_workout_form(
 ) -> dict:
     """Normaliza os campos do form e calcula calorias quando vazio."""
     if sport not in SPORTS:
-        sport = "outro"
+        sport = "funcional"
     try:
         d = date.fromisoformat(workout_date)
     except ValueError:
@@ -2156,21 +2156,24 @@ def athletes_delete(request: Request, aid: int, db: Session = Depends(get_db)):
 
 def _insert_parsed_workouts(db: Session, athlete: Athlete, parsed_list):
     """Insere treinos parseados (Strava/Garmin) com dedup por
-    (data, esporte, duração, distância). Retorna (inseridos, duplicados, by_sport)."""
+    (data, duração, distância) — IGNORANDO o esporte, de propósito: assim, se o
+    mapeamento de esporte mudou entre imports (ex: algo que entrou como "outro"
+    agora vira "pilates"), o reimport não duplica e ainda corrige o esporte do
+    registro antigo. Retorna (inseridos, duplicados, by_sport)."""
     existing = db.query(Workout).filter(Workout.athlete_id == athlete.id).all()
 
-    def key(d, sport, dur, dist):
-        return (d, sport,
+    def key(d, dur, dist):
+        return (d,
                 round(dur, 0) if dur is not None else None,
                 round(dist, 2) if dist is not None else None)
 
-    existing_by_key = {key(w.date, w.sport, w.duration_min, w.distance_km): w
+    existing_by_key = {key(w.date, w.duration_min, w.distance_km): w
                        for w in existing}
     inserted, skipped_dup = 0, 0
     by_sport: dict[str, int] = {}
 
     for pw in parsed_list:
-        k = key(pw.date, pw.sport, pw.duration_min, pw.distance_km)
+        k = key(pw.date, pw.duration_min, pw.distance_km)
         poly = getattr(pw, "polyline", None)
         extra = getattr(pw, "extra", None)
         extra_json = json.dumps(extra) if extra else None
@@ -2178,6 +2181,9 @@ def _insert_parsed_workouts(db: Session, athlete: Athlete, parsed_list):
             skipped_dup += 1
             # backfill: preenche rota / métricas extras se o treino já existia sem
             w = existing_by_key[k]
+            # corrige o esporte de registros antigos (ex: "outro" -> "pilates")
+            if pw.sport and pw.sport != w.sport:
+                w.sport = pw.sport
             if poly and not w.route_polyline:
                 w.route_polyline = poly
             if extra_json and not w.extra_json:

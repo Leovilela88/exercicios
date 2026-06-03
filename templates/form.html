@@ -17,7 +17,7 @@
         <label>
             <span>Esporte</span>
             <select name="sport" id="f-sport" required>
-                {% for val in ['corrida','trilha','caminhada','bike','natacao','musculacao','funcional','yoga','pilates','remo','outro'] %}
+                {% for val in ['corrida','trilha','caminhada','bike','natacao','musculacao','funcional','yoga','pilates','remo'] %}
                 <option value="{{ val }}" {% if workout and workout.sport == val %}selected{% endif %}>{{ sport_label(val) }}</option>
                 {% endfor %}
             </select>
@@ -63,7 +63,7 @@
 
     function toggleDistance() {
         // Esportes sem distância (mostram só duração)
-        const noDist = ['musculacao', 'funcional', 'yoga', 'pilates', 'outro'];
+        const noDist = ['musculacao', 'funcional', 'yoga', 'pilates'];
         const hide = noDist.includes(sport.value);
         distWrap.style.display = hide ? 'none' : '';
         if (hide) dist.value = '';

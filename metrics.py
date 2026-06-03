@@ -13,8 +13,12 @@ SPORT_LABELS = {
     "yoga": ("Yoga", "tag-yoga", "🧘"),
     "pilates": ("Pilates", "tag-pilates", "🧘"),
     "remo": ("Remo", "tag-row", "🚣"),
-    "outro": ("Outro", "tag-other", "💪"),
 }
+
+# Fallback para esportes desconhecidos / registros legados ("Outro" foi
+# descontinuado como categoria, mas dados antigos ainda precisam renderizar).
+_DEFAULT_LABEL = ("Outro", "tag-other", "💪")
+_DEFAULT_COLOR = "#94a3b8"
 
 # Cor de acento por esporte (espelha as classes .tag-* do style.css)
 SPORT_COLORS = {
@@ -28,7 +32,6 @@ SPORT_COLORS = {
     "yoga": "#c084fc",
     "pilates": "#f472b6",
     "remo": "#38bdf8",
-    "outro": "#94a3b8",
 }
 
 # ordem de exibição (cards/gráficos)
@@ -38,7 +41,7 @@ DISTANCE_SPORTS = {"corrida", "trilha", "caminhada", "bike", "natacao", "remo"}
 
 
 def sport_color(sport: str) -> str:
-    return SPORT_COLORS.get(sport, SPORT_COLORS["outro"])
+    return SPORT_COLORS.get(sport, _DEFAULT_COLOR)
 
 
 def is_distance_sport(sport: str) -> bool:
@@ -46,7 +49,7 @@ def is_distance_sport(sport: str) -> bool:
 
 
 def sport_label(sport: str) -> str:
-    return SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0]
+    return SPORT_LABELS.get(sport, _DEFAULT_LABEL)[0]
 
 
 def pace(sport: str, distance_km: Optional[float], duration_min: Optional[float]) -> Optional[str]:
@@ -137,8 +140,8 @@ def workout_share(sport, distance_km, duration_min, calories,
                   extra=None) -> dict:
     """Monta o payload do card de compartilhamento de um treino:
     rótulo do esporte, cor de acento e métricas (ícone + valor + rótulo)."""
-    label = SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0]
-    color = SPORT_COLORS.get(sport, SPORT_COLORS["outro"])
+    label = SPORT_LABELS.get(sport, _DEFAULT_LABEL)[0]
+    color = SPORT_COLORS.get(sport, _DEFAULT_COLOR)
     p = pace(sport, distance_km, duration_min)
     dur, dist = _fmt_duration(duration_min), _fmt_distance(distance_km)
     cal = f"{calories:.0f} kcal" if calories else None

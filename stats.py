@@ -6,8 +6,8 @@ from typing import Optional
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from metrics import (SPORT_COLORS, SPORT_LABELS, _fmt_distance, _fmt_duration,
-                     pace, sport_label)
+from metrics import (SPORT_LABELS, SPORT_ORDER, _DEFAULT_LABEL, _fmt_distance,
+                     _fmt_duration, pace, sport_color, sport_label)
 from models import Workout
 
 # Metas: rótulos e unidades por métrica
@@ -72,7 +72,7 @@ _SPORT_ICON = {
     "trilha": "mountain", "bike": "bike", "outro": "star",
 }
 # ordem de exibição no card
-_SPORT_ORDER = ("corrida", "trilha", "bike", "natacao", "musculacao", "outro")
+_SPORT_ORDER = tuple(SPORT_ORDER)
 
 
 def period_share(db: Session, athlete_id: int, start: date, end: date,
@@ -93,8 +93,8 @@ def period_share(db: Session, athlete_id: int, start: date, end: date,
             main = _fmt_distance(agg["km"]) or _fmt_duration(agg["min"]) or "—"
         sports.append({
             "icon": _SPORT_ICON.get(sport, "star"),
-            "color": SPORT_COLORS.get(sport, SPORT_COLORS["outro"]),
-            "label": SPORT_LABELS.get(sport, SPORT_LABELS["outro"])[0],
+            "color": sport_color(sport),
+            "label": sport_label(sport),
             "main": main,
             "cal": f"{agg['cal']:.0f} kcal" if agg["cal"] else "—",
             "count": agg["count"],
@@ -296,7 +296,7 @@ def monthly_calendars(db: Session, athlete_id: int, today: date, months: int = 3
     for d, sport, dist, dur, cal_ in wk_rows:
         dd = _as_date(d)
         counts[dd] = counts.get(dd, 0) + 1
-        label, tag, _icon = SPORT_LABELS.get(sport, SPORT_LABELS["outro"])
+        label, tag, _icon = SPORT_LABELS.get(sport, _DEFAULT_LABEL)
         day_workouts.setdefault(dd.isoformat(), []).append({
             "sport": label,
             "tag": tag,
